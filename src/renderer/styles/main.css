@@ -1,0 +1,770 @@
+/* Tema-variabler */
+:root {
+  /* Standard Mörkt Tema (Default) */
+  --primary-bg-color: #1e1e1e;
+  --secondary-bg-color: #252526;
+  --accent-color: #3c8eff;
+  --text-color: #f0f0f0;
+  --border-color: #3f3f3f;
+  --hover-color: #2a2d2e;
+  --error-color: #ff6464;
+  --success-color: #64ff64;
+  --warning-color: #ffcc00;
+  --terminal-bg: #121212;
+  --terminal-text: #f0f0f0;
+}
+
+/* Nostromo (Alien) tema - Rött */
+[data-theme="nostromo"] {
+  --primary-bg-color: #1a0000;
+  --secondary-bg-color: #220000;
+  --accent-color: #ff3333;
+  --text-color: #ff6666;
+  --border-color: #330000;
+  --hover-color: #440000;
+  --error-color: #ff0000;
+  --success-color: #ff9999;
+  --warning-color: #ffcc99;
+  --terminal-bg: #0a0000;
+  --terminal-text: #ff4444;
+}
+
+/* Klassisk grön terminal (AnderShell) */
+[data-theme="classic-green"] {
+  --primary-bg-color: #001100;
+  --secondary-bg-color: #002200;
+  --accent-color: #00ff00;
+  --text-color: #33ff33;
+  --border-color: #005500;
+  --hover-color: #003300;
+  --error-color: #ff5555;
+  --success-color: #00ff00;
+  --warning-color: #ffff00;
+  --terminal-bg: #001800;
+  --terminal-text: #00ff00;
+}
+
+/* Htop tema (Lila/Magenta) */
+[data-theme="htop"] {
+  --primary-bg-color: #1a0022;
+  --secondary-bg-color: #220033;
+  --accent-color: #dd33ff;
+  --text-color: #ffccff;
+  --border-color: #330044;
+  --hover-color: #440066;
+  --error-color: #ff5555;
+  --success-color: #55ff55;
+  --warning-color: #ffff55;
+  --terminal-bg: #110022;
+  --terminal-text: #cc99cc;
+}
+
+/* Cyan SSH tema */
+[data-theme="cyan-ssh"] {
+  --primary-bg-color: #001a1a;
+  --secondary-bg-color: #002222;
+  --accent-color: #00cccc;
+  --text-color: #99ffff;
+  --border-color: #004444;
+  --hover-color: #003333;
+  --error-color: #ff5555;
+  --success-color: #55ff55;
+  --warning-color: #ffff55;
+  --terminal-bg: #00151a;
+  --terminal-text: #00eeee;
+}
+
+/* Grundläggande stilar */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--primary-bg-color);
+  color: var(--text-color);
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background-color: var(--secondary-bg-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.app-title {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 0;
+  flex-grow: 1;
+}
+
+/* Formulär för anslutning */
+.connection-form {
+  background-color: var(--secondary-bg-color);
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  flex: 1 1 200px;
+}
+
+.form-group label {
+  margin-bottom: 5px;
+  font-size: 0.9em;
+  color: #cccccc;
+}
+
+/* Terminal-container */
+.terminal-container {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--terminal-bg);
+  border-radius: 4px;
+  height: 100%;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.terminal-header {
+  display: flex;
+  background-color: var(--secondary-bg-color);
+  padding: 5px 10px;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.terminal-tab {
+  padding: 8px 15px;
+  margin-right: 5px;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  background-color: var(--primary-bg-color);
+  color: #aaa;
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+}
+
+.terminal-tab.active {
+  background-color: var(--terminal-bg);
+  color: var(--text-color);
+  font-weight: bold;
+}
+
+/* Formulärelement */
+input, select, button {
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--primary-bg-color);
+  color: var(--text-color);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus, select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(60, 142, 255, 0.2);
+}
+
+button {
+  cursor: pointer;
+  background-color: var(--accent-color);
+  border: none;
+  padding: 8px 15px;
+}
+
+button:hover {
+  background-color: #2d6cc0;
+}
+
+/* Statusfält */
+.status-bar {
+  display: flex;
+  background-color: var(--secondary-bg-color);
+  padding: 5px 10px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.8em;
+  color: #cccccc;
+  align-items: center;
+  margin-top: auto;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+  background-color: #f44;
+}
+
+.status-connected {
+  background-color: #4f4;
+}
+
+.status-disconnected {
+  background-color: #f44;
+}
+
+/* Anslutningar */
+.connection-container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.saved-connections {
+  position: relative;
+  display: inline-block;
+  margin-left: 10px;
+}
+
+.dropdown-button {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: var(--secondary-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: var(--text-color);
+}
+
+.dropdown-button:hover {
+  background-color: var(--hover-color);
+}
+
+.connections-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 300px;
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: var(--secondary-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  z-index: 10;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.no-connections {
+  padding: 15px;
+  color: #aaa;
+  text-align: center;
+  font-style: italic;
+}
+
+.connection-item {
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.connection-item:hover {
+  background-color: var(--hover-color);
+}
+
+.connection-name {
+  font-weight: bold;
+  margin-bottom: 3px;
+}
+
+.connection-details {
+  font-size: 0.8em;
+  color: #bbb;
+  display: flex;
+  flex-direction: column;
+}
+
+.delete-button {
+  background-color: transparent;
+  color: #ff6464;
+  border: none;
+  padding: 5px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.delete-button:hover {
+  background-color: rgba(255, 100, 100, 0.1);
+}
+
+.save-connection {
+  margin-top: 10px;
+  align-self: flex-end;
+}
+
+/* Terminal med tabbar */
+.terminal-with-tabs {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.terminal-tabs {
+  display: flex;
+  background-color: var(--secondary-bg-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.terminal-tab-button {
+  padding: 8px 15px;
+  background-color: transparent;
+  border: none;
+  border-right: 1px solid var(--border-color);
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.terminal-tab-button.active {
+  background-color: var(--terminal-bg);
+  font-weight: bold;
+}
+
+.terminal-tab-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Filutforskare */
+.file-explorer-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--secondary-bg-color);
+}
+
+.file-explorer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-explorer-header {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background-color: var(--secondary-bg-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.current-path {
+  background-color: var(--primary-bg-color);
+  padding: 5px 10px;
+  border-radius: 4px;
+  flex-grow: 1;
+  margin-left: 10px;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 2px;
+}
+
+.file-item:hover {
+  background-color: var(--hover-color);
+}
+
+.file-item.directory {
+  color: #f8d775;
+}
+
+.file-item.file {
+  color: #75bff8;
+}
+
+.file-icon {
+  margin-right: 10px;
+}
+
+.file-name {
+  flex-grow: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 10px;
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 100px;
+}
+
+.file-date {
+  font-size: 0.8em;
+  color: #aaa;
+}
+
+.empty-folder, .loading, .error-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #aaa;
+  font-style: italic;
+}
+
+.error-message {
+  color: var(--error-color);
+  padding: 20px;
+  text-align: center;
+}
+
+/* Terminal output */
+.terminal-output {
+  flex-grow: 1;
+  background-color: var(--terminal-bg);
+  color: var(--terminal-text);
+  font-family: 'Consolas', 'DejaVu Sans Mono', monospace;
+  font-size: 14px;
+  padding: 10px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  height: calc(100% - 80px);
+}
+
+.terminal-line {
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+
+.terminal-input-form {
+  display: flex;
+  align-items: center;
+  background-color: var(--terminal-bg);
+  padding: 10px;
+  border-top: 1px solid var(--border-color);
+  position: relative;
+}
+
+.terminal-prompt {
+  color: #4f4;
+  margin-right: 10px;
+  font-family: 'Consolas', 'DejaVu Sans Mono', monospace;
+  font-weight: bold;
+}
+
+.terminal-input {
+  flex-grow: 1;
+  background-color: var(--terminal-bg);
+  border: none;
+  color: var(--terminal-text);
+  font-family: 'Consolas', 'DejaVu Sans Mono', monospace;
+  font-size: 14px;
+  padding: 5px;
+  outline: none;
+}
+
+.terminal-input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.terminal-warning {
+  font-size: 0.8em;
+  padding: 8px 10px;
+  color: #aaa;
+  background-color: rgba(255, 204, 0, 0.1);
+  border-top: 1px solid var(--border-color);
+}
+
+/* Nya stilar för den förbättrade terminalen */
+.terminal-red {
+  color: #ff6464;
+}
+
+.terminal-green {
+  color: #64ff64;
+}
+
+.terminal-yellow {
+  color: #ffcc00;
+}
+
+.terminal-blue {
+  color: #64a8ff;
+}
+
+.terminal-magenta {
+  color: #ff64ff;
+}
+
+.terminal-cyan {
+  color: #64ffff;
+}
+
+.terminal-white {
+  color: #f0f0f0;
+}
+
+.terminal-bold {
+  font-weight: bold;
+}
+
+.terminal-spinner {
+  color: #aaa;
+  margin: 10px 0;
+  font-style: italic;
+}
+
+.history-button {
+  background: transparent;
+  color: #aaa;
+  border: none;
+  margin-left: 10px;
+  padding: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.history-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.history-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.history-dropdown {
+  position: absolute;
+  bottom: 100%;
+  right: 10px;
+  width: 300px;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: var(--secondary-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  z-index: 10;
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.history-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  font-family: 'Consolas', 'DejaVu Sans Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item:hover {
+  background-color: var(--hover-color);
+}
+
+/* Empty directory message */
+.empty-directory {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Nya stilar för grupperade anslutningar */
+.connection-group {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s;
+}
+
+.group-header:hover {
+  background-color: var(--hover-color);
+}
+
+.group-toggle {
+  margin-left: auto;
+  font-size: 0.8em;
+  color: #aaa;
+}
+
+.group-items {
+  padding-left: 0;
+}
+
+.group-items.indented {
+  padding-left: 15px;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.connection-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.loading-connections {
+  padding: 15px;
+  text-align: center;
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Stilar för sparformuläret */
+.save-form {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Textareastil */
+textarea {
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--primary-bg-color);
+  color: var(--text-color);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+textarea:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(60, 142, 255, 0.2);
+}
+
+/* Tema-väljare */
+.theme-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  padding-right: 10px;
+}
+
+.theme-button {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.theme-button:hover {
+  transform: scale(1.1);
+}
+
+.theme-button.active {
+  border-color: var(--accent-color);
+  transform: scale(1.1);
+}
+
+.theme-button-default {
+  background-color: #3c8eff;
+}
+
+.theme-button-nostromo {
+  background-color: #ff3333;
+}
+
+.theme-button-classic-green {
+  background-color: #00ff00;
+}
+
+.theme-button-htop {
+  background-color: #dd33ff;
+}
+
+.theme-button-cyan-ssh {
+  background-color: #00cccc;
+} 

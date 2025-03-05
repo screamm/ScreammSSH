@@ -1,0 +1,219 @@
+.terminal-with-tabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.terminal-tabs {
+  display: flex;
+  background-color: var(--secondary-bg-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 8px;
+}
+
+.terminal-tab-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: transparent;
+  color: var(--text-color);
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  border-bottom: 2px solid transparent;
+}
+
+.terminal-tab-button:hover {
+  background-color: var(--hover-color);
+}
+
+.terminal-tab-button.active {
+  background-color: var(--primary-bg-color);
+  border-bottom: 2px solid var(--accent-color);
+  color: var(--text-color);
+}
+
+.terminal-tab-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.terminal-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: var(--terminal-bg);
+  color: var(--terminal-text);
+  padding: 0;
+  overflow: hidden;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--secondary-bg-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 16px;
+}
+
+.terminal-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-button-container {
+  position: relative;
+}
+
+.history-button {
+  background-color: transparent;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.2s;
+}
+
+.history-button:hover {
+  background-color: var(--hover-color);
+}
+
+.history-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.history-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 300px;
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: var(--secondary-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  z-index: 100;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.history-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.history-item:hover {
+  background-color: var(--hover-color);
+}
+
+.terminal-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--terminal-text);
+}
+
+.terminal-output pre {
+  margin: 0;
+}
+
+.terminal-input-form {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--terminal-bg);
+}
+
+.terminal-prompt {
+  color: var(--accent-color);
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-weight: bold;
+  font-size: 14px;
+  margin-right: 8px;
+}
+
+.terminal-input {
+  flex: 1;
+  background-color: transparent;
+  border: none;
+  color: var(--terminal-text);
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 14px;
+  padding: 4px 0;
+  outline: none;
+}
+
+.terminal-input::placeholder {
+  color: rgba(var(--terminal-text-rgb, 240, 240, 240), 0.5);
+}
+
+.terminal-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 3px solid rgba(var(--terminal-text-rgb, 240, 240, 240), 0.2);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Terminal text colors are now handled by CSS variables in main.css */
+.terminal-red {
+  color: var(--error-color);
+}
+
+.terminal-green {
+  color: var(--success-color);
+}
+
+.terminal-yellow {
+  color: var(--warning-color);
+}
+
+.terminal-blue {
+  color: var(--accent-color);
+}
+
+.terminal-magenta {
+  color: #dd33ff;
+}
+
+.terminal-cyan {
+  color: #00cccc;
+}
+
+.terminal-white {
+  color: var(--text-color);
+}
+
+.terminal-bold {
+  font-weight: bold;
+} 

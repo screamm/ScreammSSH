@@ -1,0 +1,84 @@
+{
+  "name": "screamm-ssh-client",
+  "version": "1.0.0",
+  "description": "En modern SSH-klient för utvecklare",
+  "main": ".webpack/main",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "ssh",
+    "terminal",
+    "electron",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron-forge/cli": "^6.0.0",
+    "@electron-forge/maker-deb": "^6.4.2",
+    "@electron-forge/maker-rpm": "^6.4.2",
+    "@electron-forge/maker-squirrel": "^6.4.2",
+    "@electron-forge/maker-zip": "^6.4.2",
+    "@electron-forge/plugin-webpack": "^6.4.2",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.3.5",
+    "@types/ssh2": "^1.11.0",
+    "@types/uuid": "^10.0.0",
+    "@vercel/webpack-asset-relocator-loader": "^1.7.3",
+    "assert": "^2.1.0",
+    "browserify-zlib": "^0.2.0",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.1",
+    "css-loader": "^6.7.0",
+    "electron": "^23.0.0",
+    "electron-builder": "^23.6.0",
+    "fork-ts-checker-webpack-plugin": "^9.0.2",
+    "https-browserify": "^1.0.0",
+    "node-loader": "^2.1.0",
+    "null-loader": "^4.0.1",
+    "os-browserify": "^0.3.0",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "stream-browserify": "^3.0.0",
+    "stream-http": "^3.2.0",
+    "style-loader": "^3.3.0",
+    "ts-loader": "^9.4.0",
+    "typescript": "^4.9.0",
+    "url": "^0.11.4",
+    "util": "^0.12.5",
+    "vm-browserify": "^1.1.2",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.0",
+    "webpack-node-externals": "^3.0.0"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.5.0",
+    "ssh2": "^1.11.0",
+    "uuid": "^11.1.0",
+    "xterm": "^5.1.0",
+    "xterm-addon-fit": "^0.7.0",
+    "xterm-addon-web-links": "^0.8.0"
+  },
+  "build": {
+    "appId": "com.screammssh.app",
+    "productName": "ScreammSSH",
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/ssh2",
+        "to": "app.asar.unpacked/node_modules/ssh2"
+      }
+    ]
+  }
+}
