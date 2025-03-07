@@ -86,7 +86,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.readdir(path, (err, list) => {
+        sftp.readdir(path, (err: Error, list: any) => {
           if (err) {
             reject({ error: `Kunde inte lista katalog: ${err.message}` });
             return;
@@ -122,13 +122,13 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.readFile(path, 'utf8', (err, data) => {
+        sftp.readFile(path, 'utf8', (err: Error, data: string) => {
           if (err) {
             reject({ error: `Kunde inte läsa fil: ${err.message}` });
             return;
           }
           
-          resolve({ success: true, content: data.toString() });
+          resolve({ success: true, content: data });
         });
       });
     } catch (error: any) {
@@ -144,7 +144,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.writeFile(path, content, (err) => {
+        sftp.writeFile(path, content, (err: Error) => {
           if (err) {
             reject({ error: `Kunde inte skriva till fil: ${err.message}` });
             return;
@@ -166,7 +166,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.unlink(path, (err) => {
+        sftp.unlink(path, (err: Error) => {
           if (err) {
             reject({ error: `Kunde inte ta bort fil: ${err.message}` });
             return;
@@ -188,7 +188,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.mkdir(path, (err) => {
+        sftp.mkdir(path, (err: Error) => {
           if (err) {
             reject({ error: `Kunde inte skapa katalog: ${err.message}` });
             return;
@@ -212,7 +212,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       // Notera: Detta tar bara bort tomma kataloger
       // För rekursiv borttagning behöver vi implementera en mer komplex lösning
       return new Promise((resolve, reject) => {
-        sftp.rmdir(path, (err) => {
+        sftp.rmdir(path, (err: Error) => {
           if (err) {
             reject({ error: `Kunde inte ta bort katalog: ${err.message}` });
             return;
@@ -234,7 +234,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.rename(oldPath, newPath, (err) => {
+        sftp.rename(oldPath, newPath, (err: Error) => {
           if (err) {
             reject({ error: `Kunde inte byta namn: ${err.message}` });
             return;
@@ -338,7 +338,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.stat(path, (err, stats) => {
+        sftp.stat(path, (err: Error, stats: any) => {
           if (err) {
             reject({ error: `Kunde inte hämta filstatistik: ${err.message}` });
             return;
@@ -371,7 +371,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve) => {
-        sftp.stat(path, (err) => {
+        sftp.stat(path, (err: Error, stats: any) => {
           if (err) {
             resolve({ success: true, exists: false });
             return;

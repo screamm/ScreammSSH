@@ -1,0 +1,390 @@
+.ssh-manager-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: var(--terminal-bg, #1a1a1a);
+  color: var(--terminal-text, #f0f0f0);
+  font-family: var(--font-mono, 'Courier New', monospace);
+  border-radius: 5px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--terminal-border, #444);
+}
+
+.ssh-manager-container h2 {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--terminal-border, #444);
+  color: var(--terminal-header-text, #ddd);
+  text-align: center;
+}
+
+.ssh-connections-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  border: 1px solid var(--terminal-border, #444);
+  background-color: var(--terminal-input-bg, #252525);
+}
+
+.connection-item {
+  padding: 15px;
+  border-bottom: 1px solid var(--terminal-border, #444);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.connection-item:last-child {
+  border-bottom: none;
+}
+
+.connection-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.connection-item.selected {
+  background-color: rgba(0, 255, 0, 0.05);
+  border-left: 4px solid var(--terminal-prompt, #0f0);
+}
+
+.connection-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+  color: var(--terminal-text, #f0f0f0);
+}
+
+.connection-host {
+  font-size: 0.9rem;
+  color: var(--terminal-text, #f0f0f0);
+  opacity: 0.7;
+  font-family: var(--font-mono, 'Courier New', monospace);
+  margin-bottom: 5px;
+}
+
+.connection-last-connected {
+  font-size: 0.8rem;
+  color: var(--terminal-text, #f0f0f0);
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.delete-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 5px 10px;
+  background-color: rgba(255, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.delete-button:hover {
+  opacity: 1;
+  background-color: rgba(255, 0, 0, 0.9);
+}
+
+.delete-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.ssh-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.ssh-actions button {
+  flex: 1;
+  margin: 0 5px;
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.ssh-actions button:first-child {
+  margin-left: 0;
+  background-color: var(--terminal-prompt, #0f0);
+  color: black;
+}
+
+.ssh-actions button:nth-child(2) {
+  background-color: var(--terminal-header-bg, #333);
+  color: var(--terminal-text, #f0f0f0);
+}
+
+.ssh-actions button:last-child {
+  margin-right: 0;
+  background-color: rgba(255, 0, 0, 0.7);
+  color: white;
+}
+
+.ssh-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ssh-error {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: rgba(255, 0, 0, 0.1);
+  border-left: 4px solid rgba(255, 0, 0, 0.7);
+  color: rgba(255, 0, 0, 0.9);
+  font-size: 0.9rem;
+}
+
+.ssh-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-group label {
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: var(--terminal-text, #f0f0f0);
+  opacity: 0.8;
+}
+
+.form-group input {
+  padding: 10px;
+  border: 1px solid var(--terminal-border, #444);
+  border-radius: 4px;
+  background-color: var(--terminal-input-bg, #252525);
+  color: var(--terminal-text, #f0f0f0);
+  font-family: var(--font-mono, 'Courier New', monospace);
+  font-size: 0.9rem;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--terminal-prompt, #0f0);
+  box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.1);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.form-actions button {
+  flex: 1;
+  margin: 0 5px;
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.form-actions button:first-child {
+  margin-left: 0;
+  background-color: rgba(255, 0, 0, 0.7);
+  color: white;
+}
+
+.form-actions button:last-child {
+  margin-right: 0;
+  background-color: var(--terminal-prompt, #0f0);
+  color: black;
+}
+
+.no-connections {
+  padding: 30px;
+  text-align: center;
+  color: var(--terminal-text, #f0f0f0);
+  opacity: 0.5;
+  font-style: italic;
+}
+
+/* Terminal Tab Menu Styling */
+.terminal-tab-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: var(--terminal-header-bg, #333);
+  border: 1px solid var(--terminal-border, #444);
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.terminal-tab-menu-item {
+  padding: 10px 15px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.terminal-tab-menu-item:hover {
+  background-color: var(--terminal-input-bg, #252525);
+}
+
+.terminal-new-tab {
+  padding: 8px 15px;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+}
+
+.terminal-new-tab:hover {
+  background-color: var(--terminal-input-bg, #252525);
+}
+
+.tab-title {
+  display: inline-block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Temaspecifika överskrivningar för SSH Manager */
+html[data-theme="light"] .ssh-manager-container {
+  background-color: #f0f0f0;
+  color: #333;
+  border-color: #ccc;
+}
+
+html[data-theme="light"] .ssh-manager-container h2 {
+  color: #333;
+  border-color: #ccc;
+}
+
+html[data-theme="light"] .ssh-connections-list {
+  background-color: #fff;
+  border-color: #ccc;
+}
+
+html[data-theme="light"] .connection-item {
+  border-color: #eee;
+}
+
+html[data-theme="light"] .connection-item:hover {
+  background-color: #f5f5f5;
+}
+
+html[data-theme="light"] .connection-item.selected {
+  background-color: rgba(0, 160, 0, 0.05);
+  border-left-color: #0a0;
+}
+
+html[data-theme="light"] .connection-name {
+  color: #333;
+}
+
+html[data-theme="light"] .connection-host {
+  color: #333;
+}
+
+html[data-theme="matrix"] .ssh-manager-container {
+  background-color: #001000;
+  border-color: #005500;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+html[data-theme="matrix"] .connection-item.selected {
+  background-color: rgba(0, 255, 0, 0.1);
+  border-left-color: #00ff00;
+}
+
+html[data-theme="matrix"] .ssh-actions button:first-child,
+html[data-theme="matrix"] .form-actions button:last-child {
+  background-color: #00aa00;
+}
+
+html[data-theme="blue"] .ssh-manager-container {
+  background-color: #001020;
+  border-color: #002040;
+}
+
+html[data-theme="blue"] .connection-item.selected {
+  background-color: rgba(0, 120, 255, 0.1);
+  border-left-color: #0078ff;
+}
+
+html[data-theme="blue"] .ssh-actions button:first-child,
+html[data-theme="blue"] .form-actions button:last-child {
+  background-color: #0062cc;
+}
+
+/* ANSI color support */
+.ansi-black { color: #000000; }
+.ansi-red { color: #ff0000; }
+.ansi-green { color: #00ff00; }
+.ansi-yellow { color: #ffff00; }
+.ansi-blue { color: #0000ff; }
+.ansi-magenta { color: #ff00ff; }
+.ansi-cyan { color: #00ffff; }
+.ansi-white { color: #ffffff; }
+.ansi-bright-black { color: #808080; }
+.ansi-bright-red { color: #ff8080; }
+.ansi-bright-green { color: #80ff80; }
+.ansi-bright-yellow { color: #ffff80; }
+.ansi-bright-blue { color: #8080ff; }
+.ansi-bright-magenta { color: #ff80ff; }
+.ansi-bright-cyan { color: #80ffff; }
+.ansi-bright-white { color: #ffffff; }
+
+/* Temaspecifika överskrivningar */
+html[data-theme="dark"] .ssh-manager-container {
+  background-color: #2a2a2a;
+  border-color: #444;
+}
+
+html[data-theme="dark"] .connection-item:hover {
+  background-color: #3a3a3a;
+}
+
+html[data-theme="dark"] .connection-item.selected {
+  background-color: #444;
+}
+
+html[data-theme="matrix"] .ssh-manager-container {
+  background-color: #0a0f0a;
+  border-color: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+html[data-theme="matrix"] .connection-item.selected {
+  border-left-color: #00ff00;
+  background-color: rgba(0, 255, 0, 0.1);
+}
+
+html[data-theme="matrix"] .ssh-actions button:nth-child(2) {
+  background-color: #00aa00;
+}
+
+html[data-theme="blue"] .ssh-manager-container {
+  background-color: #1a2a3a;
+  border-color: #3a5a7a;
+}
+
+html[data-theme="blue"] .connection-item.selected {
+  border-left-color: #5a9aff;
+  background-color: rgba(90, 154, 255, 0.1);
+}
+
+html[data-theme="blue"] .ssh-actions button:nth-child(2) {
+  background-color: #3a5a9a;
+} 

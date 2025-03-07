@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
 export type Theme = 'default' | 'nostromo' | 'classic-green' | 'htop' | 'cyan-ssh';
 
@@ -7,89 +7,91 @@ interface ThemeSelectorProps {
 }
 
 const ThemeSelector: React.FC<ThemeSelectorProps> = ({ onThemeChange }) => {
-  const [currentTheme, setCurrentTheme] = useState<Theme>('default');
-  
-  // Läs senast använda temat från electron-store vid uppstart
-  useEffect(() => {
+  const [activeTheme, setActiveTheme] = React.useState<Theme>('default');
+
+  React.useEffect(() => {
+    // Läs in tema från localStorage vid uppstart
     const loadTheme = async () => {
       try {
-        // Försök läsa från electron-store först
-        const storedTheme = await window.electronAPI.getTheme() as Theme;
-        
-        if (storedTheme) {
-          setCurrentTheme(storedTheme);
-          applyTheme(storedTheme);
-          if (onThemeChange) {
-            onThemeChange(storedTheme);
-          }
-        } else {
-          // Fallback till localStorage om inget finns i electron-store
-          const savedTheme = localStorage.getItem('selectedTheme') as Theme | null;
-          if (savedTheme) {
-            setCurrentTheme(savedTheme);
-            applyTheme(savedTheme);
-            // Spara till electron-store för framtida användning
-            await window.electronAPI.saveTheme(savedTheme);
-            if (onThemeChange) {
-              onThemeChange(savedTheme);
-            }
-          }
+        const savedTheme = await window.electronAPI.getTheme();
+        if (savedTheme) {
+          setActiveTheme(savedTheme as Theme);
+          
+          // Applicera temat på <body> element
+          document.body.setAttribute('data-theme', savedTheme);
         }
       } catch (error) {
-        console.error('Fel vid laddning av tema:', error);
+        console.error('Kunde inte ladda tema:', error);
       }
     };
     
     loadTheme();
   }, []);
-  
+
   const applyTheme = (theme: Theme) => {
-    // Uppdatera data-theme attributet på root-elementet
-    if (theme === 'default') {
-      document.documentElement.removeAttribute('data-theme');
-    } else {
-      document.documentElement.setAttribute('data-theme', theme);
-    }
-  };
-  
-  const changeTheme = async (theme: Theme) => {
-    setCurrentTheme(theme);
-    applyTheme(theme);
+    setActiveTheme(theme);
     
-    // Spara temat både i localStorage (för snabb åtkomst) och electron-store (permanent)
-    localStorage.setItem('selectedTheme', theme);
-    try {
-      await window.electronAPI.saveTheme(theme);
-    } catch (error) {
-      console.error('Fel vid sparande av tema:', error);
-    }
+    // Applicera tema på body-elementet
+    document.body.setAttribute('data-theme', theme);
     
-    // Meddela föräldrakomponenten
+    // Anropa callback om det finns
     if (onThemeChange) {
       onThemeChange(theme);
     }
   };
-  
-  // Lista över alla teman
-  const themes: { id: Theme; name: string }[] = [
-    { id: 'default', name: 'Standard' },
-    { id: 'nostromo', name: 'Nostromo (Röd)' },
-    { id: 'classic-green', name: 'Klassisk Terminal (Grön)' },
-    { id: 'htop', name: 'Htop (Lila)' },
-    { id: 'cyan-ssh', name: 'Cyan SSH' }
-  ];
-  
+
+  const changeTheme = async (theme: Theme) => {
+    applyTheme(theme);
+    
+    // Spara temat i lagringen
+    try {
+      await window.electronAPI.saveTheme(theme);
+    } catch (error) {
+      console.error('Kunde inte spara tema:', error);
+    }
+  };
+
   return (
-    <div className="theme-selector">
-      <span>Tema:</span>
-      {themes.map(theme => (
-        <button
-          key={theme.id}
-          className={`theme-button theme-button-${theme.id} ${currentTheme === theme.id ? 'active' : ''}`}
-          onClick={() => changeTheme(theme.id)}
-          title={theme.name}
-        />
-      ))}
+    <div className="theme-buttons">
+      <button 
+        onClick={() => changeTheme('default')}
+        className={`theme-button ${activeTheme === 'default' ? 'active' : ''}`}
+        aria-label="Standard tema"
+      >
+        Standard
+      </button>
+      
+      <button 
+        onClick={() => changeTheme('nostromo')}
+        className={`theme-button ${activeTheme === 'nostromo' ? 'active' : ''}`}
+        aria-label="Nostromo tema (röd)"
+      >
+        Nostromo
+      </button>
+      
+      <button 
+        onClick={() => changeTheme('classic-green')}
+        className={`theme-button ${activeTheme === 'classic-green' ? 'active' : ''}`}
+        aria-label="Klassisk grön terminal"
+      >
+        Terminal
+      </button>
+      
+      <button 
+        onClick={() => changeTheme('htop')}
+        className={`theme-button ${activeTheme === 'htop' ? 'active' : ''}`}
+        aria-label="Htop tema (lila)"
+      >
+        Htop
+      </button>
+      
+      <button 
+        onClick={() => changeTheme('cyan-ssh')}
+        className={`theme-button ${activeTheme === 'cyan-ssh' ? 'active' : ''}`}
+        aria-label="Cyan SSH tema"
+      >
+        Cyan SSH
+      </button>
     </div>
   );
 };

@@ -2,29 +2,35 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  width: 100%;
   overflow: hidden;
+  background-color: var(--terminal-bg);
+  border: var(--pixelated-border) solid var(--accent-color);
+  box-shadow: 3px 3px 0 var(--shadow-color);
 }
 
 .terminal-tabs {
   display: flex;
   background-color: var(--secondary-bg-color);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0 8px;
+  padding: 2px 2px 0;
+  border-bottom: var(--pixelated-border) solid var(--accent-color);
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
 .terminal-tab-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background-color: transparent;
+  padding: 5px 10px;
+  background-color: var(--primary-bg-color);
   color: var(--text-color);
-  border: none;
-  padding: 8px 16px;
+  border: var(--pixelated-border) solid var(--border-color);
+  border-bottom: none;
+  margin-right: 1px;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
-  border-bottom: 2px solid transparent;
+  font-family: 'DOS', 'Courier New', monospace;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: bold;
+  position: relative;
+  box-shadow: inset 1px 1px 0 var(--button-highlight);
 }
 
 .terminal-tab-button:hover {
@@ -32,9 +38,10 @@
 }
 
 .terminal-tab-button.active {
-  background-color: var(--primary-bg-color);
-  border-bottom: 2px solid var(--accent-color);
-  color: var(--text-color);
+  background-color: var(--terminal-bg);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+  z-index: 1;
 }
 
 .terminal-tab-button:disabled {
@@ -43,32 +50,33 @@
 }
 
 .terminal-container {
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
   height: 100%;
-  width: 100%;
   background-color: var(--terminal-bg);
   color: var(--terminal-text);
-  padding: 0;
+  font-family: 'DOS', 'Courier New', monospace;
   overflow: hidden;
+  border: none;
 }
 
 .terminal-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   background-color: var(--secondary-bg-color);
-  border-bottom: 1px solid var(--border-color);
-  padding: 8px 16px;
+  padding: 5px 10px;
+  border-bottom: var(--pixelated-border) solid var(--border-color);
 }
 
 .terminal-title {
+  font-weight: bold;
+  text-transform: uppercase;
   font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-color);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  color: var(--accent-color);
+  text-shadow: 1px 1px 0 var(--shadow-color);
+  letter-spacing: 1px;
 }
 
 .history-button-container {
@@ -76,16 +84,17 @@
 }
 
 .history-button {
-  background-color: transparent;
+  background-color: var(--secondary-bg-color);
   color: var(--text-color);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 4px 8px;
+  border: var(--pixelated-border) solid var(--border-color);
+  padding: 2px 5px;
+  font-size: 0.8rem;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
-  transition: background-color 0.2s;
+  text-transform: uppercase;
+  font-weight: bold;
+  box-shadow: 2px 2px 0 var(--shadow-color);
 }
 
 .history-button:hover {
@@ -99,25 +108,25 @@
 
 .history-dropdown {
   position: absolute;
-  top: 100%;
+  top: 30px;
   right: 0;
   width: 300px;
-  max-height: 300px;
+  max-height: 200px;
   overflow-y: auto;
   background-color: var(--secondary-bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border: var(--pixelated-border) solid var(--accent-color);
   z-index: 100;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 3px 3px 0px var(--shadow-color);
 }
 
 .history-item {
-  padding: 8px 16px;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  padding: 5px 10px;
   border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  font-family: 'DOS', 'Courier New', monospace;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .history-item:hover {
@@ -125,95 +134,153 @@
 }
 
 .terminal-output {
-  flex: 1;
+  flex-grow: 1;
+  padding: 10px;
   overflow-y: auto;
-  padding: 10px 16px;
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.5;
   white-space: pre-wrap;
+  word-break: break-word;
   color: var(--terminal-text);
+  background-color: var(--terminal-bg);
+  font-size: 1rem;
+  line-height: 1.4;
 }
 
 .terminal-output pre {
   margin: 0;
+  font-family: inherit;
 }
 
 .terminal-input-form {
   display: flex;
   align-items: center;
-  padding: 10px 16px;
-  border-top: 1px solid var(--border-color);
   background-color: var(--terminal-bg);
+  padding: 5px 10px;
+  border-top: var(--pixelated-border) solid var(--border-color);
 }
 
 .terminal-prompt {
   color: var(--accent-color);
-  font-family: 'Consolas', 'Courier New', monospace;
+  margin-right: 5px;
+  font-family: 'DOS', 'Courier New', monospace;
   font-weight: bold;
-  font-size: 14px;
-  margin-right: 8px;
+  white-space: nowrap;
+  text-shadow: 1px 1px 0 var(--shadow-color);
 }
 
 .terminal-input {
-  flex: 1;
-  background-color: transparent;
-  border: none;
+  flex-grow: 1;
+  background-color: var(--terminal-bg);
   color: var(--terminal-text);
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 14px;
-  padding: 4px 0;
+  border: none;
   outline: none;
+  font-family: 'DOS', 'Courier New', monospace;
+  font-size: 1rem;
+  padding: 5px;
+  caret-color: var(--accent-color);
 }
 
 .terminal-input::placeholder {
-  color: rgba(var(--terminal-text-rgb, 240, 240, 240), 0.5);
+  color: rgba(var(--terminal-text), 0.5);
+  opacity: 0.6;
 }
 
 .terminal-spinner {
   display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 3px solid rgba(var(--terminal-text-rgb, 240, 240, 240), 0.2);
-  border-top-color: var(--accent-color);
-  border-radius: 50%;
+  width: 0.8em;
+  height: 0.8em;
+  border: 2px solid var(--text-color);
+  border-radius: 0px;
+  border-top-color: transparent;
   animation: spin 1s linear infinite;
-  margin-right: 8px;
+  margin-right: 5px;
+  vertical-align: middle;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* Terminal text colors are now handled by CSS variables in main.css */
+/* Terminal färger */
 .terminal-red {
-  color: var(--error-color);
+  color: #ff5555;
 }
 
 .terminal-green {
-  color: var(--success-color);
+  color: #55ff55;
 }
 
 .terminal-yellow {
-  color: var(--warning-color);
+  color: #ffff55;
 }
 
 .terminal-blue {
-  color: var(--accent-color);
+  color: #5555ff;
 }
 
 .terminal-magenta {
-  color: #dd33ff;
+  color: #ff55ff;
 }
 
 .terminal-cyan {
-  color: #00cccc;
+  color: #55ffff;
 }
 
 .terminal-white {
-  color: var(--text-color);
+  color: #f0f0f0;
 }
 
 .terminal-bold {
   font-weight: bold;
+}
+
+/* Pixelated cursor */
+.terminal-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: var(--accent-color);
+  animation: blink-cursor 1s step-start infinite;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+}
+
+@keyframes blink-cursor {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* DOS-liknande retro scrollbar */
+.terminal-output::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+  background-color: var(--primary-bg-color);
+  border: var(--pixelated-border) solid var(--border-color);
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background-color: var(--secondary-bg-color);
+  border: var(--pixelated-border) solid var(--accent-color);
+}
+
+.terminal-output::-webkit-scrollbar-button {
+  display: block;
+  background-color: var(--secondary-bg-color);
+  border: var(--pixelated-border) solid var(--border-color);
+  height: 16px;
+  width: 16px;
+}
+
+.terminal-output::-webkit-scrollbar-button:vertical:start {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 8px 8px;
+}
+
+.terminal-output::-webkit-scrollbar-button:vertical:end {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 8px 8px;
 } 

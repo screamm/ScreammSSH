@@ -31,4 +31,9 @@ module.exports = [
       },
     },
   },
+  // Regel för att kopiera assets-katalogen
+  {
+    test: /\.(woff|woff2|eot|ttf|otf)$/i,
+    type: 'asset/resource',
+  },
 ]; 

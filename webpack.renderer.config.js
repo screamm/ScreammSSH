@@ -11,6 +11,10 @@ module.exports = {
         test: /\.css$/,
         use: [{ loader: 'style-loader' }, { loader: 'css-loader' }],
       },
+      {
+        test: /\.(woff|woff2|eot|ttf|otf)$/i,
+        type: 'asset/resource',
+      },
     ],
   },
   plugins: [
@@ -45,10 +49,18 @@ module.exports = {
     alias: {
       'react': require.resolve('react'),
       'react-dom': require.resolve('react-dom'),
+      'react-dom/client': path.resolve(__dirname, 'src/renderer/polyfills/react-dom-client.ts'),
       'electron': require.resolve('./src/renderer/utils/electron-fix.ts'),
+      'react/jsx-runtime': require.resolve('react/jsx-runtime'),
     },
+    modules: [
+      path.resolve(__dirname, 'node_modules'),
+      'node_modules',
+    ],
   },
-  externals: {
-    electron: 'commonjs electron',
-  },
-}; 
+  devServer: {
+    headers: {
+      'Content-Security-Policy': "default-src 'self'; font-src 'self' data:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"
+    }
+  }
+} 
