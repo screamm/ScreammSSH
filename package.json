@@ -8,7 +8,13 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "dev": "node dev-start.js",
+    "build-and-run": "node build-and-run.js",
+    "check-env": "node check-environment.js",
+    "start-app": "node start-app.js",
+    "build-app": "node build-app.js",
+    "force-build": "node force-build.js"
   },
   "keywords": [
     "ssh",

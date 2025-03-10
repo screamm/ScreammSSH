@@ -1,13 +1,115 @@
 import { ipcMain } from 'electron';
 import * as SSH2 from 'ssh2';
+import { Client, ClientChannel } from 'ssh2';
 import { v4 as uuidv4 } from 'uuid';
 import { registerConnection, unregisterConnection, setupSftpHandlers } from './sftp-handler';
 
-// Spåra aktiva anslutningar
-const activeConnections: Map<string, SSH2.Client> = new Map();
+// Map för att hålla aktiva anslutningar
+const activeConnections = new Map<string, Client>();
 
 // Ställ in SFTP-handlers
 // setupSftpHandlers(); // Borttagen för att undvika dubblettinitialisering
+
+/**
+ * Ansluter till en SSH-server
+ */
+export const connectSSH = async (connectionId: string, config: any): Promise<{ success: boolean, error?: string }> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const client = new SSH2.Client();
+      
+      // Använd explicit typning för event handlers
+      (client as any).on('ready', () => {
+        activeConnections.set(connectionId, client);
+        // Registrera anslutningen för SFTP-användning
+        registerConnection(connectionId, client);
+        resolve({ success: true });
+      });
+      
+      (client as any).on('error', (err: Error) => {
+        reject({ success: false, error: err.message || 'Okänt fel' });
+      });
+      
+      // Anslut till servern
+      client.connect({
+        host: config.host,
+        port: config.port || 22,
+        username: config.username,
+        password: config.password,
+        privateKey: config.privateKey,
+        readyTimeout: 10000
+      });
+    } catch (error: any) {
+      reject({ success: false, error: error.message || 'Okänt fel' });
+    }
+  });
+};
+
+/**
+ * Kör ett kommando på en SSH-server
+ */
+export const executeCommand = async (
+  connectionId: string, 
+  command: string
+): Promise<{ success: boolean, stdout?: string, stderr?: string, code?: number, error?: string }> => {
+  return new Promise((resolve) => {
+    const client = activeConnections.get(connectionId);
+    
+    if (!client) {
+      return resolve({ 
+        success: false, 
+        error: 'Ingen aktiv anslutning med detta ID' 
+      });
+    }
+    
+    try {
+      client.exec(command, (err: Error | undefined, stream: ClientChannel) => {
+        if (err) {
+          return resolve({ 
+            success: false, 
+            error: err.message || 'Fel vid körning av kommando' 
+          });
+        }
+        
+        let stdout = '';
+        let stderr = '';
+        
+        stream.on('data', (data: Buffer) => {
+          stdout += data.toString();
+        });
+        
+        stream.stderr.on('data', (data: Buffer) => {
+          stderr += data.toString();
+        });
+        
+        stream.on('close', (code: number) => {
+          resolve({
+            success: true,
+            stdout,
+            stderr,
+            code
+          });
+        });
+      });
+    } catch (error: any) {
+      resolve({ 
+        success: false, 
+        error: error.message || 'Okänt fel vid körning av kommando' 
+      });
+    }
+  });
+};
+
+/**
+ * Kopplar från en SSH-server
+ */
+export const disconnectSSH = (connectionId: string): void => {
+  const client = activeConnections.get(connectionId);
+  if (client) {
+    client.end();
+    activeConnections.delete(connectionId);
+  }
+};
 
 export const setupSSHHandlers = (): void => {
   // Hantera SSH-anslutningar

@@ -1,91 +1,68 @@
-# ScreammSSH - Modern SSH/SFTP-klient
+# ScreammSSH
 
-En modern SSH-klient byggd med Electron, React och TypeScript. ScreammSSH erbjuder en användarvänlig gränssnitt för SSH-anslutningar, filöverföring via SFTP och flera teman för en anpassad upplevelse.
+En utvecklarfokuserad SSH-klient med retro-grönt gränssnitt och avancerade funktioner för olika användarroller.
 
-![ScreammSSH Screenshot](inspirationsbild.png)
+![ScreammSSH Screenshot](screenshot.png)
 
 ## Funktioner
 
-- **SSH Terminal**: Anslut till servrar via SSH med lösenord eller nycklar
-- **SFTP Filhantering**: Bläddra, ladda upp, ladda ner och redigera filer på fjärrservrar
-- **Temastöd**: Välj mellan flera retro-temade gränssnitt 
-- **Sparade anslutningar**: Spara dina anslutningsuppgifter för snabb åtkomst
-- **Kommandohistorik**: Åtkomst till tidigare använda kommandon
+- Retro-grönt terminalutseende med ASCII-konst
+- Rollbaserade layouter för olika användartyper (Backend, DevOps, SysAdmin, Frontend)
+- Terminalemulering med stöd för ANSI/VT100
+- Sessionshantering för SSH-anslutningar
+- Filöverföring via SFTP
+- Anpassningsbara teman och inställningar
 
-## Teman
-
-ScreammSSH kommer med följande teman:
-
-1. **Standard**: Modernt mörkt tema
-2. **Nostromo (Röd)**: Inspirerat av ALIEN-filmerna med röd text på svart bakgrund
-3. **Klassisk Terminal (Grön)**: Traditionell grön text på svart bakgrund
-4. **Htop (Lila)**: Lila text på mörk bakgrund, inspirerat av systemövervakare
-5. **Cyan SSH**: Cyan/blå text på mörk bakgrund
-
-Byt tema genom att klicka på temaväljarknapparna i appens övre del.
-
-## Installation och utveckling
+## Utveckling
 
 ### Förutsättningar
-- Node.js (v14+)
-- npm eller yarn
+
+- Node.js (v14 eller senare)
+- npm (v6 eller senare)
 
 ### Installation
 
 ```bash
-# Klona repositoryt
-git clone https://github.com/your-username/screamm-ssh.git
-cd screamm-ssh
+# Klona projektet
+git clone https://github.com/yourusername/ScreammSSH.git
+cd ScreammSSH
 
 # Installera beroenden
 npm install
-
-# Starta utvecklingsversionen
-npm start
 ```
 
-### Skapa en installationsfil
+### Starta utvecklingsmiljön
 
 ```bash
-# Skapa en distributionspaket för din plattform
+# Starta utvecklingsservern och Electron-appen
+npm run dev
+```
+
+### Bygga för produktion
+
+```bash
+# Bygg för Windows
 npm run make
 ```
 
-## Felsökning
+## Projektstruktur
 
-### Kända problem och lösningar
-
-1. **Anslutningsproblem**
-   - Kontrollera att du har korrekt host, port, användarnamn och lösenord/nyckel
-   - Kontrollera att servern är nåbar (ping, telnet)
-   - Se över eventuella brandväggsinställningar
-
-2. **Node Native Module Error**
-   - Om du får problem med nativa moduler (särskilt ssh2), installera byggverktyg:
-     ```
-     npm install --global windows-build-tools  # För Windows
-     ```
-   - Eller ominstallera node-modulerna:
-     ```
-     rm -rf node_modules
-     npm install
-     ```
-
-3. **Teman fungerar inte**
-   - Kontrollera att du har de senaste versionerna av alla beroenden
-   - Rensa cachad data genom att ta bort följande mapp:
-     - Windows: `%APPDATA%\screamm-ssh-config`
-     - macOS: `~/Library/Application Support/screamm-ssh-config`
-     - Linux: `~/.config/screamm-ssh-config`
-
-4. **SFTP-fel**
-   - Kontrollera att din användare har behörighet till filerna/mapparna
-   - Vissa servrar begränsar SFTP-åtkomst till specifika mappar
+```
+ScreammSSH/
+├── src/
+│   ├── main/           # Electron huvudprocess
+│   │   ├── main.ts     # Huvudfil för Electron
+│   │   └── preload.ts  # Preload-skript för säker IPC
+│   └── renderer/       # Frontend-kod
+│       ├── components/ # UI-komponenter
+│       ├── styles/     # CSS-stilar
+│       ├── utils/      # Hjälpfunktioner
+│       ├── App.tsx     # Huvudkomponent
+│       └── index.tsx   # Ingångspunkt för renderer
+├── webpack.*.config.js # Webpack-konfiguration
+└── package.json        # Projektberoenden och skript
+```
 
 ## Licens
 
-MIT
-
-## Bidra
-
-Bidrag välkomnas! Öppna ett issue eller skicka en pull request. 
+Copyright (c) 2023 ScreammSSH Team - Alla rättigheter förbehållna 
