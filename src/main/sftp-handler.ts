@@ -122,13 +122,14 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.readFile(path, 'utf8', (err: Error, data: string) => {
+        sftp.readFile(path, { encoding: 'utf8' }, (err: Error | undefined, data: Buffer) => {
           if (err) {
             reject({ error: `Kunde inte läsa fil: ${err.message}` });
             return;
           }
           
-          resolve({ success: true, content: data });
+          const content = data.toString('utf8');
+          resolve({ success: true, content });
         });
       });
     } catch (error: any) {
@@ -144,7 +145,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.writeFile(path, content, (err: Error) => {
+        sftp.writeFile(path, content, { encoding: 'utf8' }, (err: Error | undefined) => {
           if (err) {
             reject({ error: `Kunde inte skriva till fil: ${err.message}` });
             return;
@@ -188,7 +189,7 @@ export const setupSftpHandlers = (options?: { force?: boolean }): void => {
       const sftp = await initializeSftp(connectionId);
       
       return new Promise((resolve, reject) => {
-        sftp.mkdir(path, (err: Error) => {
+        sftp.mkdir(path, null, (err: Error | undefined) => {
           if (err) {
             reject({ error: `Kunde inte skapa katalog: ${err.message}` });
             return;

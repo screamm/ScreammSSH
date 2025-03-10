@@ -3,6 +3,7 @@ import React from 'react';
 import { createRoot } from './polyfills/react-dom-client';
 import App from './App';
 // Importera stilarna explicit
+import './styles/fonts.css'; // Importera fonter först
 import './styles/main.css';
 import './styles/FileExplorer.css'; // Importera även FileExplorer-stilarna
 // Importera xterm.css direkt i index.tsx

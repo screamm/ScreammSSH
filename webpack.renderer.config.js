@@ -4,6 +4,10 @@ const webpack = require('webpack');
 const path = require('path');
 
 module.exports = {
+  /**
+   * Detta är ingångspunkten för renderer-processen
+   */
+  entry: './src/renderer/index.tsx',
   module: {
     rules: [
       ...rules,

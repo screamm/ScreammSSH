@@ -1,0 +1,39 @@
+@font-face {
+  font-family: 'DOS';
+  src: url('../assets/fonts/Perfect DOS VGA 437.woff2') format('woff2'),
+       url('../assets/fonts/Perfect DOS VGA 437.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Optimalt stöd för ASCII-konst */
+:root {
+  --ascii-font: 'DOS', 'Courier New', monospace;
+}
+
+/* För rendering av ASCII-konst med blocktecken */
+.ascii-block-text {
+  font-family: 'DejaVu Sans Mono', 'Consolas', monospace; /* Bra typsnitt för Unicode-blocktecken */
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+/* Importera ytterligare fonter för bättre stöd av ASCII-konst */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap');
+
+/* Extra klasser för block-text */
+.ascii-block-text {
+  font-family: monospace;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+/* För användning av Unicode block tecken */
+@font-face {
+  font-family: 'Hack';
+  src: url('https://cdn.jsdelivr.net/npm/hack-font@3/build/web/hack-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+} 

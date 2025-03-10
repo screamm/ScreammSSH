@@ -40,7 +40,7 @@ export class SSHService {
       const result = await window.electronAPI.sshExecute(this.id, command);
       
       if (result.success) {
-        return result.stdout || '';
+        return result.stdout || result.output || '';
       } else {
         throw new Error(result.error || 'Okänt fel vid körning av kommando');
       }

@@ -148,7 +148,7 @@ const AsciiTerminal: React.FC<AsciiTerminalProps> = ({
         privateKey: sshConfig.privateKey
       });
       
-      if (result.success && result.connectionId) {
+      if (result.success && result.sessionId) {
         setIsConnected(true);
         setIsConnecting(false);
         
@@ -159,19 +159,19 @@ const AsciiTerminal: React.FC<AsciiTerminalProps> = ({
         addMessage(`Ansluten till ${sshConfig.host}.`, 'system');
         
         // Kör några inledande kommandon för att visa systeminformation
-        const whoamiResult = await window.electronAPI.sshExecute(result.connectionId, 'whoami');
+        const whoamiResult = await window.electronAPI.sshExecute(result.sessionId, 'whoami');
         addMessage(`Inloggad som: ${whoamiResult.stdout?.trim() || 'okänd'}`, 'system');
         
-        const hostnameResult = await window.electronAPI.sshExecute(result.connectionId, 'hostname');
+        const hostnameResult = await window.electronAPI.sshExecute(result.sessionId, 'hostname');
         addMessage(`Värdnamn: ${hostnameResult.stdout?.trim() || 'okänd'}`, 'system');
         
-        const uptimeResult = await window.electronAPI.sshExecute(result.connectionId, 'uptime');
+        const uptimeResult = await window.electronAPI.sshExecute(result.sessionId, 'uptime');
         if (uptimeResult.success) {
           addMessage(`System uptime: ${uptimeResult.stdout?.trim() || 'okänd'}`, 'system');
         }
         
         // Spara anslutnings-ID för framtida användning
-        sshConfig.id = result.connectionId;
+        sshConfig.id = result.sessionId;
       } else {
         setIsConnecting(false);
         addMessage(`Anslutningsfel: ${result.error || 'Okänt fel'}`, 'error');

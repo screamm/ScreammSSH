@@ -531,12 +531,31 @@ body.ascii-ui {
 
 /* ASCII konstlogotyp */
 .ascii-logo {
-  color: var(--ascii-bright);
-  font-size: 14px;
-  line-height: 1;
+  color: #00ff00;
+  font-size: 13px;
+  line-height: 1.1;
   white-space: pre;
   margin-bottom: calc(var(--ascii-grid) * 2);
   text-align: center;
+  font-family: monospace, 'Courier New';
+  font-weight: bold;
+  text-shadow: 0 0 7px rgba(0, 255, 0, 0.7);
+  letter-spacing: 0;
+}
+
+/* Specifika stilar för pixel-block-text */
+.ascii-block-text pre {
+  margin: 0;
+  padding: 0;
+  display: inline-block;
+}
+
+/* På vissa skärmar kan det behövas justering av storleken */
+@media (max-width: 768px) {
+  .ascii-logo {
+    font-size: 10px;
+    transform: scale(0.9);
+  }
 }
 
 /* Hjälptext */

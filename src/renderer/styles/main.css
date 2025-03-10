@@ -1,3 +1,13 @@
+/* Ladda in DOS-typsnittet */
+@font-face {
+  font-family: 'DOS';
+  src: url('../assets/fonts/Perfect DOS VGA 437.woff2') format('woff2'),
+       url('../assets/fonts/Perfect DOS VGA 437.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Tema-variabler */
 :root {
   /* Standard Mörkt Tema (Default) */
