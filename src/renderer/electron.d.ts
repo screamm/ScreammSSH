@@ -1,197 +1,124 @@
-interface ElectronAPI {
-  // SSH-funktioner
-  sshConnect: (config: {
-    id?: string;
-    host: string;
-    port?: number;
-    username: string;
-    password?: string;
-    privateKey?: string;
-  }) => Promise<{
-    success: boolean;
-    sessionId?: string;
-    error?: string;
-  }>;
-  sshExecute: (id: string, command: string) => Promise<{
-    success: boolean;
-    output?: string;
-    error?: string;
-    code?: number;
-    stdout?: string;
-    stderr?: string;
-  }>;
-  sshDisconnect: (id: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-  
-  // SSH Lyssnare
-  onSshOutput: (callback: (data: {
-    id: string;
-    output?: string;
-    error?: string;
-  }) => void) => (() => void);
-  
-  // SFTP-funktioner
-  sftpListDirectory: (id: string, path: string) => Promise<{
-    success: boolean;
-    path?: string;
-    files?: any[];
-    error?: string;
-  }>;
-  
-  sftpGetFile: (id: string, path: string) => Promise<{
-    success: boolean;
-    remotePath?: string;
-    localPath?: string;
-    error?: string;
-  }>;
-  
-  sftpPutFile: (id: string, path: string) => Promise<{
-    success: boolean;
-    remotePath?: string;
-    localPath?: string;
-    error?: string;
-  }>;
+import { SSHConnectionInfo } from './services/SSHService';
 
-  // Tillagda SFTP-funktioner
-  sftpReadFile: (id: string, path: string) => Promise<{
-    success: boolean;
-    content?: string;
-    error?: string;
-  }>;
-
-  sftpWriteFile: (id: string, path: string, content: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-
-  sftpDeleteFile: (id: string, path: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-
-  sftpCreateDirectory: (id: string, path: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-
-  sftpDeleteDirectory: (id: string, path: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-
-  sftpRename: (id: string, oldPath: string, newPath: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-
-  sftpUploadFile: (id: string, localPath: string, remotePath: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-
-  sftpDownloadFile: (id: string, remotePath: string, localPath: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-
-  sftpGetStats: (id: string, path: string) => Promise<{
-    success: boolean;
-    stats?: any;
-    error?: string;
-  }>;
-
-  sftpExists: (id: string, path: string) => Promise<{
-    success: boolean;
-    exists?: boolean;
-    error?: string;
-  }>;
-  
-  // Lagrings-funktioner
-  getSavedConnections: () => Promise<any[]>;
-  saveConnection: (connection: any) => Promise<{ 
-    success: boolean; 
-    id?: string;
-    connectionId?: string;
-    connections?: any[];
-    error?: string 
-  }>;
-  deleteConnection: (id: string) => Promise<{ 
-    success: boolean; 
-    error?: string 
-  }>;
-  
-  // Tema-funktioner
-  getTheme: () => Promise<string>;
-  saveTheme: (theme: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-
-  // Språkfunktioner
-  getLanguage: () => Promise<string>;
-  saveLanguage: (language: string) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-
-  // Terminalinställningar
-  getTerminalSettings: () => Promise<{
-    retroEffect: boolean;
-    cursorBlink: boolean;
-    fontSize: number;
-  }>;
-  saveTerminalSettings: (settings: {
-    retroEffect: boolean;
-    cursorBlink: boolean;
-    fontSize: number;
-  }) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-  
-  // Shell-funktioner - för att köra lokala systemkommandon
-  shellCreate: () => Promise<{ 
-    success: boolean; 
-    id?: string; 
-    error?: string 
-  }>;
-  shellExecute: (id: string, command: string) => Promise<{ 
-    success: boolean; 
-    error?: string;
-    stdout?: string;
-    stderr?: string;
-  }>;
-  shellTerminate: (id: string) => Promise<{ 
-    success: boolean; 
-    error?: string 
-  }>;
-  
-  // Lyssnare för shell-händelser
-  onShellOutput: (callback: (data: {
-    id: string;
-    output?: string;
-    error?: string;
-  }) => void) => (() => void);
-  
-  onShellError: (callback: (data: {
-    id: string;
-    error: string;
-  }) => void) => (() => void);
-  
-  onShellExit: (callback: (data: {
-    id: string;
-    code: number;
-  }) => void) => (() => void);
-
-  // Simple test function to verify IPC is working
-  ping: () => Promise<string>;
-
-  // Anslutningshantering
-  removeAllListeners: () => void;
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
 }
 
-interface Window {
-  electronAPI: ElectronAPI;
+export interface CustomTheme {
+  id: string;
+  name: string;
+  description?: string;
+  colors: {
+    background: string;
+    foreground: string;
+    cursor: string;
+    selectionBackground: string;
+    // Terminal-färger
+    black: string;
+    brightBlack: string;
+    red: string;
+    brightRed: string;
+    green: string;
+    brightGreen: string;
+    yellow: string;
+    brightYellow: string;
+    blue: string;
+    brightBlue: string;
+    magenta: string;
+    brightMagenta: string;
+    cyan: string;
+    brightCyan: string;
+    white: string;
+    brightWhite: string;
+  };
+  fontFamily?: string;
+  fontSize?: number;
+}
+
+export interface SFTPFile {
+  filename: string;
+  longname: string;
+  attrs: {
+    size: number;
+    mtime: number;
+    atime: number;
+    uid: number;
+    gid: number;
+    mode: number;
+    permissions: string;
+    owner: string;
+    group: string;
+    type: string;
+  };
+  isDirectory: boolean;
+  isFile: boolean;
+  isSymbolicLink: boolean;
+  path: string;
+}
+
+export interface ElectronAPI {
+  // System functions
+  openExternal: (url: string) => Promise<void>;
+  openPath: (path: string) => Promise<string>;
+  showItemInFolder: (path: string) => void;
+  showMessageBox: (options: any) => Promise<{ response: number, checkboxChecked: boolean }>;
+  platform: string;
+  appVersion: string;
+  
+  // App settings
+  getSettings: () => Promise<any>;
+  saveSettings: (settings: any) => Promise<void>;
+  
+  // Terminal settings (för bakåtkompatibilitet)
+  getTerminalSettings: () => Promise<any>;
+  saveTerminalSettings: (settings: any) => Promise<void>;
+  saveLanguage: (language: string) => Promise<void>;
+  
+  // Shell functions (för bakåtkompatibilitet)
+  shellCreate: () => Promise<any>;
+  shellExecute: (sessionId: string, command: string) => Promise<any>;
+  shellTerminate: (sessionId: string) => Promise<any>;
+  onShellOutput: (callback: (data: any) => void) => () => void;
+  onShellError: (callback: (data: any) => void) => () => void;
+  onShellExit: (callback: (data: any) => void) => () => void;
+  
+  // SSH functions
+  connectSSH: (config: SSHConnectionInfo) => Promise<boolean>;
+  disconnectSSH: (connectionId: string) => Promise<void>;
+  executeSSHCommand: (connectionId: string, command: string) => Promise<string>;
+  openSSHShell: (connectionId: string) => Promise<boolean>;
+  writeToSSHShell: (connectionId: string, data: string) => Promise<void>;
+  resizeSSHShell: (connectionId: string, cols: number, rows: number) => Promise<void>;
+  closeSSHShell: (connectionId: string) => Promise<void>;
+  
+  // Connection management
+  getSavedConnections: () => Promise<SSHConnectionInfo[]>;
+  saveConnection: (connection: SSHConnectionInfo) => Promise<void>;
+  deleteConnection: (connectionId: string) => Promise<void>;
+  
+  // Themes
+  getThemes: () => Promise<CustomTheme[]>;
+  saveTheme: (theme: CustomTheme) => Promise<void>;
+  deleteTheme: (themeId: string) => Promise<void>;
+  
+  // SFTP operations
+  sftpConnect: (connectionId: string) => Promise<boolean>;
+  sftpDisconnect: (connectionId: string) => Promise<void>;
+  sftpListDirectory: (connectionId: string, remotePath: string) => Promise<SFTPFile[]>;
+  sftpGetFile: (connectionId: string, remotePath: string, localPath: string) => Promise<void>;
+  sftpPutFile: (connectionId: string, localPath: string, remotePath: string) => Promise<void>;
+  sftpMakeDirectory: (connectionId: string, remotePath: string) => Promise<void>;
+  sftpRename: (connectionId: string, oldPath: string, newPath: string) => Promise<void>;
+  sftpDeleteFile: (connectionId: string, remotePath: string) => Promise<void>;
+  sftpDeleteDirectory: (connectionId: string, remotePath: string) => Promise<void>;
+  
+  // Event listeners
+  onSSHEvent: (callback: (event: any, connectionId: string, eventType: string, data: any) => void) => () => void;
+  onShellOutput: (callback: (event: any, connectionId: string, data: string) => void) => () => void;
+  onSFTPProgress: (callback: (event: any, connectionId: string, operation: string, filename: string, progress: number) => void) => () => void;
+  
+  // Ping function for testing connectivity
+  ping: () => Promise<string>;
 } 

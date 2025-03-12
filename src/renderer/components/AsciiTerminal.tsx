@@ -140,7 +140,9 @@ const AsciiTerminal: React.FC<AsciiTerminalProps> = ({
     addMessage(`Ansluter till ${sshConfig.host}:${sshConfig.port} som ${sshConfig.username}...`, 'system');
     
     try {
-      const result = await window.electronAPI.sshConnect({
+      const success = await window.electronAPI.connectSSH({
+        id: sshConfig.id || uuidv4(),
+        name: sshConfig.name,
         host: sshConfig.host,
         port: sshConfig.port,
         username: sshConfig.username,
@@ -148,7 +150,7 @@ const AsciiTerminal: React.FC<AsciiTerminalProps> = ({
         privateKey: sshConfig.privateKey
       });
       
-      if (result.success && result.sessionId) {
+      if (success) {
         setIsConnected(true);
         setIsConnecting(false);
         
@@ -159,22 +161,22 @@ const AsciiTerminal: React.FC<AsciiTerminalProps> = ({
         addMessage(`Ansluten till ${sshConfig.host}.`, 'system');
         
         // Kör några inledande kommandon för att visa systeminformation
-        const whoamiResult = await window.electronAPI.sshExecute(result.sessionId, 'whoami');
-        addMessage(`Inloggad som: ${whoamiResult.stdout?.trim() || 'okänd'}`, 'system');
-        
-        const hostnameResult = await window.electronAPI.sshExecute(result.sessionId, 'hostname');
-        addMessage(`Värdnamn: ${hostnameResult.stdout?.trim() || 'okänd'}`, 'system');
-        
-        const uptimeResult = await window.electronAPI.sshExecute(result.sessionId, 'uptime');
-        if (uptimeResult.success) {
-          addMessage(`System uptime: ${uptimeResult.stdout?.trim() || 'okänd'}`, 'system');
+        try {
+          const whoamiResult = await window.electronAPI.executeSSHCommand(sshConfig.id, 'whoami');
+          addMessage(`Inloggad som: ${whoamiResult.trim() || 'okänd'}`, 'system');
+          
+          const hostnameResult = await window.electronAPI.executeSSHCommand(sshConfig.id, 'hostname');
+          addMessage(`Värdnamn: ${hostnameResult.trim() || 'okänd'}`, 'system');
+          
+          const uptimeResult = await window.electronAPI.executeSSHCommand(sshConfig.id, 'uptime');
+          addMessage(`System uptime: ${uptimeResult.trim() || 'okänd'}`, 'system');
+        } catch (cmdError) {
+          console.error('Fel vid körning av kommandon:', cmdError);
+          addMessage(`Fel vid körning av kommandon: ${cmdError instanceof Error ? cmdError.message : 'Okänt fel'}`, 'error');
         }
-        
-        // Spara anslutnings-ID för framtida användning
-        sshConfig.id = result.sessionId;
       } else {
         setIsConnecting(false);
-        addMessage(`Anslutningsfel: ${result.error || 'Okänt fel'}`, 'error');
+        addMessage(`Anslutningsfel: Kunde inte ansluta till servern`, 'error');
       }
     } catch (error) {
       console.error('Anslutningsfel:', error);
@@ -187,19 +189,14 @@ const AsciiTerminal: React.FC<AsciiTerminalProps> = ({
     if (!isConnected) return;
     
     try {
-      const result = await window.electronAPI.sshDisconnect(sshConfig.id);
+      await window.electronAPI.disconnectSSH(sshConfig.id);
+      setIsConnected(false);
       
-      if (result.success) {
-        setIsConnected(false);
-        
-        if (onConnectionStatus) {
-          onConnectionStatus(false);
-        }
-        
-        addMessage('Frånkopplad från servern.', 'system');
-      } else {
-        addMessage(`Kunde inte koppla från: ${result.error || 'Okänt fel'}`, 'error');
+      if (onConnectionStatus) {
+        onConnectionStatus(false);
       }
+      
+      addMessage('Frånkopplad från servern.', 'system');
     } catch (error) {
       console.error('Frånkopplingsfel:', error);
       addMessage(`Frånkopplingsfel: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
@@ -251,25 +248,13 @@ const AsciiTerminal: React.FC<AsciiTerminalProps> = ({
     }
     
     try {
-      const result = await window.electronAPI.sshExecute(sshConfig.id, command);
+      const result = await window.electronAPI.executeSSHCommand(sshConfig.id, command);
       
-      if (result.success) {
-        if (result.stdout) {
-          addMessage(result.stdout);
-        }
-        
-        if (result.stderr) {
-          addMessage(result.stderr, 'error');
-        }
-        
-        if (result.code !== 0) {
-          addMessage(`Kommandot återvände med kod: ${result.code}`, 'system');
-        }
-      } else {
-        addMessage(`Kunde inte köra kommando: ${result.error || 'Okänt fel'}`, 'error');
+      if (result) {
+        addMessage(result);
       }
     } catch (error) {
-      console.error('Fel vid körning av kommando:', error);
+      console.error('Kommandofel:', error);
       addMessage(`Fel vid körning av kommando: ${error instanceof Error ? error.message : 'Okänt fel'}`, 'error');
     }
   };

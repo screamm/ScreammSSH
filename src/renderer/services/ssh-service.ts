@@ -1,11 +1,16 @@
 import { SFTPService } from './sftp-service';
 
 export interface SSHConfig {
+  id: string;
+  name: string;
   host: string;
   port: number;
   username: string;
   password?: string;
   privateKey?: string;
+  passphrase?: string;
+  keepaliveInterval?: number;
+  readyTimeout?: number;
 }
 
 export class SSHService {
@@ -16,36 +21,42 @@ export class SSHService {
     this.id = id;
   }
   
-  async connect(config: SSHConfig): Promise<void> {
+  async connect(config: SSHConfig): Promise<boolean> {
     try {
-      const result = await window.electronAPI.sshConnect(config);
-      
-      if (result.success) {
-        this.connected = true;
-      } else {
-        throw new Error(result.error);
+      if (!window.electronAPI || !window.electronAPI.connectSSH) {
+        throw new Error('electronAPI.connectSSH är inte tillgänglig');
       }
-    } catch (err: any) {
-      this.connected = false;
-      throw err;
+
+      const success = await window.electronAPI.connectSSH(config);
+      
+      if (success) {
+        this.connected = true;
+        this.id = config.id;
+        return true;
+      } else {
+        console.error(`Kunde inte ansluta till ${config.host}`);
+        return false;
+      }
+    } catch (error) {
+      console.error('SSH-anslutningsfel:', error);
+      return false;
     }
   }
   
   async executeCommand(command: string): Promise<string> {
     if (!this.connected) {
-      throw new Error('Ingen aktiv SSH-anslutning');
+      throw new Error('Inte ansluten till SSH-server');
     }
     
     try {
-      const result = await window.electronAPI.sshExecute(this.id, command);
-      
-      if (result.success) {
-        return result.stdout || result.output || '';
-      } else {
-        throw new Error(result.error || 'Okänt fel vid körning av kommando');
+      if (!window.electronAPI || !window.electronAPI.executeSSHCommand) {
+        throw new Error('electronAPI.executeSSHCommand är inte tillgänglig');
       }
-    } catch (err: any) {
-      throw err;
+
+      return await window.electronAPI.executeSSHCommand(this.id, command);
+    } catch (error) {
+      console.error('SSH-kommandofel:', error);
+      throw error;
     }
   }
   
@@ -62,10 +73,18 @@ export class SSHService {
   async disconnect(): Promise<void> {
     if (this.connected) {
       try {
-        await window.electronAPI.sshDisconnect(this.id);
+        if (!window.electronAPI || !window.electronAPI.disconnectSSH) {
+          throw new Error('electronAPI.disconnectSSH är inte tillgänglig');
+        }
+
+        await window.electronAPI.disconnectSSH(this.id);
       } finally {
         this.connected = false;
       }
     }
+  }
+
+  getCurrentId(): string {
+    return this.id;
   }
 } 

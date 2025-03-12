@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { SFTPService } from '../services/sftp-service';
+import { SFTPFile } from '../electron';
 import { Theme } from './ThemeSelector';
 import { 
   FolderIcon, 
@@ -13,29 +14,19 @@ import {
   TimesIcon, 
   CheckIcon 
 } from '../utils/icon-wrapper';
+import { formatFileSize, formatDate } from '../utils/format-utils';
 import '../styles/FileExplorer.css';
-
-interface FileEntry {
-  filename: string;
-  longname: string;
-  attrs: {
-    size: number;
-    mtime: number;
-    atime: number;
-    isDirectory: boolean;
-    isFile: boolean;
-    isSymbolicLink: boolean;
-  };
-}
 
 interface FileExplorerProps {
   connectionId: string;
   theme?: Theme;
+  onSelectFile?: (file: SFTPFile) => void;
+  onError?: (error: string) => void;
 }
 
-const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'default' }) => {
+const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'default', onSelectFile, onError }) => {
   const [currentPath, setCurrentPath] = useState('/');
-  const [files, setFiles] = useState<FileEntry[]>([]);
+  const [files, setFiles] = useState<SFTPFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -46,16 +37,40 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<FileEntry | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<SFTPFile | null>(null);
+  const [sftpService, setSftpService] = useState<SFTPService | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   
-  const sftpService = new SFTPService(connectionId);
-  
   useEffect(() => {
-    loadDirectory(currentPath);
-  }, [currentPath, connectionId]);
+    if (!connectionId) return;
+    
+    const initSftp = async () => {
+      try {
+        const service = new SFTPService(connectionId);
+        await service.connect();
+        setSftpService(service);
+        
+        // Ladda rot-katalogen
+        loadDirectory('/');
+      } catch (err: any) {
+        console.error('SFTP-initieringsfel:', err);
+        const errorMessage = `Kunde inte ansluta till SFTP: ${err.message}`;
+        setError(errorMessage);
+        if (onError) onError(errorMessage);
+      }
+    };
+    
+    initSftp();
+    
+    return () => {
+      // Koppla från SFTP vid cleanup
+      if (sftpService) {
+        sftpService.disconnect();
+      }
+    };
+  }, [connectionId]);
   
   useEffect(() => {
     if (isEditing && textAreaRef.current) {
@@ -67,68 +82,56 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
     document.documentElement.setAttribute('data-theme', theme === 'default' ? '' : theme);
   }, [theme]);
   
-  const loadDirectory = async (path: string) => {
+  const loadDirectory = useCallback(async (path: string) => {
+    if (!sftpService) return;
+    
     setLoading(true);
     setError(null);
-    setFileContent(null);
-    setSelectedFile(null);
-    setIsEditing(false);
-    setEditingContent(null);
     
     try {
       const directoryContents = await sftpService.listDirectory(path);
+      
+      // Mappa om filerna till att inkludera isDirectory, isFile, isSymbolicLink direkt i objektet
       setFiles(directoryContents);
+      setCurrentPath(path);
     } catch (err: any) {
       console.error('SFTP-listningsfel:', err);
       setError(`Kunde inte läsa katalogen: ${err.message}`);
-      setFiles([]);
+      if (onError) onError(`Kunde inte läsa katalogen: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [sftpService, onError]);
   
   const refreshCurrentDirectory = () => {
     loadDirectory(currentPath);
   };
   
-  const handleFileClick = async (file: FileEntry) => {
-    if (file.attrs.isDirectory) {
-      // Navigera till katalogen
+  const handleFileClick = (file: SFTPFile) => {
+    if (file.isDirectory) {
+      // Om det är en katalog, navigera in i den
       const newPath = currentPath === '/' 
-        ? `/${file.filename}`
+        ? `/${file.filename}` 
         : `${currentPath}/${file.filename}`;
-      setCurrentPath(newPath);
+      loadDirectory(newPath);
     } else {
-      // Visa filinnehåll
-      setSelectedFile(file.filename);
-      setLoading(true);
-      try {
-        const path = currentPath === '/' 
-          ? `/${file.filename}`
-          : `${currentPath}/${file.filename}`;
-        const content = await sftpService.getFileContent(path);
-        setFileContent(content);
-        setEditingContent(content);
-      } catch (err: any) {
-        console.error('SFTP-filläsningsfel:', err);
-        setError(`Kunde inte läsa filen: ${err.message}`);
-        setFileContent(null);
-      } finally {
-        setLoading(false);
+      // Om det är en fil, anropa callback om den finns
+      if (onSelectFile) {
+        onSelectFile(file);
       }
     }
   };
   
-  const navigateUp = () => {
+  const handleNavigateUp = () => {
     if (currentPath === '/') return;
     
     const pathParts = currentPath.split('/').filter(Boolean);
     pathParts.pop();
-    const newPath = pathParts.length === 0 ? '/' : '/' + pathParts.join('/');
-    setCurrentPath(newPath);
+    const parentPath = pathParts.length === 0 ? '/' : `/${pathParts.join('/')}`;
+    loadDirectory(parentPath);
   };
   
-  const downloadFile = async (file: FileEntry) => {
+  const downloadFile = async (file: SFTPFile) => {
     // För teknisk demonstration, vi visar bara innehållet i webbläsaren
     // I en verklig app skulle vi använda Electron-API:et för att välja var filen ska sparas
     
@@ -138,7 +141,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
         ? `/${file.filename}`
         : `${currentPath}/${file.filename}`;
         
-      const content = await sftpService.getFileContent(filePath);
+      const content = await sftpService?.getFileContent(filePath);
       
       // Skapa en blob och en temporär länk för att ladda ner filen
       const blob = new Blob([content], { type: 'text/plain' });
@@ -183,7 +186,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
             ? `/${file.name}`
             : `${currentPath}/${file.name}`;
           
-          await sftpService.writeFile(uploadPath, content);
+          await sftpService?.writeFile(uploadPath, content);
           refreshCurrentDirectory();
           alert(`Fil uppladdad: ${file.name}`);
         } catch (err: any) {
@@ -214,7 +217,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
         ? `/${selectedFile}`
         : `${currentPath}/${selectedFile}`;
       
-      await sftpService.writeFile(filePath, editingContent);
+      await sftpService?.writeFile(filePath, editingContent);
       setFileContent(editingContent);
       setIsEditing(false);
       alert(`Filen har sparats: ${selectedFile}`);
@@ -242,7 +245,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
         ? `/${newFolderName}`
         : `${currentPath}/${newFolderName}`;
       
-      await sftpService.createDirectory(folderPath);
+      await sftpService?.createDirectory(folderPath);
       setShowCreateFolder(false);
       setNewFolderName('');
       refreshCurrentDirectory();
@@ -254,7 +257,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
     }
   };
   
-  const confirmDelete = (file: FileEntry) => {
+  const confirmDelete = (file: SFTPFile) => {
     setItemToDelete(file);
     setShowConfirmDelete(true);
   };
@@ -273,10 +276,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
         ? `/${itemToDelete.filename}`
         : `${currentPath}/${itemToDelete.filename}`;
       
-      if (itemToDelete.attrs.isDirectory) {
-        await sftpService.deleteDirectory(itemPath);
+      if (itemToDelete.isDirectory) {
+        await sftpService?.deleteDirectory(itemPath);
       } else {
-        await sftpService.deleteFile(itemPath);
+        await sftpService?.deleteFile(itemPath);
       }
       
       setShowConfirmDelete(false);
@@ -291,31 +294,20 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
         setIsEditing(false);
       }
       
-      alert(`${itemToDelete.attrs.isDirectory ? 'Mapp' : 'Fil'} borttagen: ${itemToDelete.filename}`);
+      alert(`${itemToDelete.isDirectory ? 'Mapp' : 'Fil'} borttagen: ${itemToDelete.filename}`);
     } catch (err: any) {
-      setError(`Kunde inte ta bort ${itemToDelete.attrs.isDirectory ? 'mappen' : 'filen'}: ${err.message}`);
+      setError(`Kunde inte ta bort ${itemToDelete.isDirectory ? 'mappen' : 'filen'}: ${err.message}`);
     } finally {
       setActionInProgress(null);
     }
-  };
-  
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
-  
-  const formatDate = (timestamp: number): string => {
-    return new Date(timestamp * 1000).toLocaleString();
   };
   
   return (
     <div className="file-explorer">
       <div className="file-explorer-header">
         <button 
-          onClick={navigateUp} 
-          disabled={currentPath === '/' || !!actionInProgress}
+          onClick={handleNavigateUp} 
+          disabled={currentPath === '/' || loading}
           className="navigator-button"
           title="Navigera upp"
         >
@@ -363,8 +355,8 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
             files
               .sort((a, b) => {
                 // Sortera kataloger först, sedan filer
-                if (a.attrs.isDirectory && !b.attrs.isDirectory) return -1;
-                if (!a.attrs.isDirectory && b.attrs.isDirectory) return 1;
+                if (a.isDirectory && !b.isDirectory) return -1;
+                if (!a.isDirectory && b.isDirectory) return 1;
                 // Sortera alfabetiskt
                 return a.filename.localeCompare(b.filename);
               })
@@ -375,32 +367,40 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
                 >
                   <div className="file-item-content" onClick={() => handleFileClick(file)}>
                     <div className="file-icon">
-                      {file.attrs.isDirectory ? <FolderIcon /> : <FileIcon />}
+                      {file.isDirectory ? <FolderIcon /> : <FileIcon />}
                     </div>
                     <div className="file-name">{file.filename}</div>
-                    <div className="file-size">{file.attrs.isFile ? formatFileSize(file.attrs.size) : ''}</div>
-                    <div className="file-date">{formatDate(file.attrs.mtime)}</div>
+                    <div className="file-details">
+                      <span className="file-size">
+                        {file.isDirectory ? '--' : formatFileSize(file.attrs.size)}
+                      </span>
+                      <span className="file-date">
+                        {formatDate(new Date(file.attrs.mtime * 1000))}
+                      </span>
+                    </div>
                   </div>
                   
                   <div className="file-actions">
-                    {file.attrs.isFile && (
+                    {file.isDirectory && (
                       <button 
-                        onClick={(e) => { e.stopPropagation(); downloadFile(file); }} 
+                        onClick={(e) => { e.stopPropagation(); handleFileClick(file); }} 
                         className="file-action-button"
                         disabled={!!actionInProgress}
-                        title="Ladda ner"
+                        title="Navigera in"
                       >
-                        <DownloadIcon />
+                        <FolderIcon />
                       </button>
                     )}
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); confirmDelete(file); }} 
-                      className="file-action-button delete"
-                      disabled={!!actionInProgress}
-                      title="Ta bort"
-                    >
-                      <TrashIcon />
-                    </button>
+                    {file.isDirectory && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); confirmDelete(file); }} 
+                        className="file-action-button delete"
+                        disabled={!!actionInProgress}
+                        title="Ta bort"
+                      >
+                        <TrashIcon />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -495,9 +495,9 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ connectionId, theme = 'defa
           <div className="modal-content">
             <h3>Bekräfta borttagning</h3>
             <p>
-              Är du säker på att du vill ta bort {itemToDelete.attrs.isDirectory ? 'mappen' : 'filen'} 
+              Är du säker på att du vill ta bort {itemToDelete.isDirectory ? 'mappen' : 'filen'} 
               <strong> {itemToDelete.filename}</strong>?
-              {itemToDelete.attrs.isDirectory && ' Alla filer i mappen kommer också att tas bort.'}
+              {itemToDelete.isDirectory && ' Alla filer i mappen kommer också att tas bort.'}
             </p>
             <div className="modal-buttons">
               <button 

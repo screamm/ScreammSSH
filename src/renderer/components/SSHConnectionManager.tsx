@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/ssh-manager.css';
+import { v4 as uuidv4 } from 'uuid';
 
 interface SSHConnection {
   id: string;
@@ -56,17 +57,12 @@ const SSHConnectionManager: React.FC<SSHConnectionManagerProps> = ({ onConnect, 
   };
   
   const handleConnect = async () => {
-    if (!selectedConnection && !isCreating) {
-      setError(t('noConnectionSelected'));
-      return;
-    }
-    
-    setIsLoading(true);
     setError(null);
+    setIsLoading(true);
     
     try {
-      let connectionConfig: any;
       let connectionId: string;
+      let connectionConfig: any;
       
       if (isCreating) {
         // Validera den nya anslutningen
@@ -76,14 +72,27 @@ const SSHConnectionManager: React.FC<SSHConnectionManagerProps> = ({ onConnect, 
           return;
         }
         
-        // Spara den nya anslutningen först
-        const result = await window.electronAPI.saveConnection(newConnection);
-        if (!result.success) {
-          throw new Error(result.error || t('failedToSaveConnection'));
-        }
+        // Skapa ett nytt anslutningsobjekt
+        const connectionToSave: SSHConnection = {
+          id: uuidv4(),
+          name: newConnection.name || `${newConnection.username}@${newConnection.host}`,
+          host: newConnection.host || '',
+          port: newConnection.port || 22,
+          username: newConnection.username || '',
+          password: newConnection.password,
+          privateKey: newConnection.privateKey,
+          lastConnected: new Date()
+        };
         
-        connectionConfig = newConnection;
-        connectionId = result.id || `conn-${Date.now()}`;
+        // Spara den nya anslutningen
+        try {
+          await window.electronAPI.saveConnection(connectionToSave);
+          connectionConfig = connectionToSave;
+          connectionId = connectionToSave.id;
+        } catch (error) {
+          console.error('Kunde inte spara anslutning:', error);
+          throw new Error(t('failedToSaveConnection'));
+        }
       } else {
         // Använd vald befintlig anslutning
         const connection = connections.find(c => c.id === selectedConnection);
@@ -95,9 +104,10 @@ const SSHConnectionManager: React.FC<SSHConnectionManagerProps> = ({ onConnect, 
         connectionId = connection.id;
       }
       
-      // Anslut till SSH
+      // Anslut till SSH med vår egen SSHService istället för electronAPI direkt
       const sshConfig = {
         id: connectionId,
+        name: connectionConfig.name,
         host: connectionConfig.host,
         port: connectionConfig.port || 22,
         username: connectionConfig.username,
@@ -106,50 +116,35 @@ const SSHConnectionManager: React.FC<SSHConnectionManagerProps> = ({ onConnect, 
       };
       
       console.log('Ansluter till SSH med:', sshConfig);
-      const sshResult = await window.electronAPI.sshConnect(sshConfig);
       
-      if (sshResult && sshResult.success) {
-        // Använd sessionId om det finns, annars fall tillbaka på connectionId
-        const sessionIdentifier = sshResult.sessionId || connectionId;
-        console.log('SSH-anslutning lyckades, sessionId:', sessionIdentifier);
-        onConnect(sessionIdentifier);
+      // Använd vår egen SSH-service
+      const connected = await window.electronAPI.connectSSH(sshConfig);
+      
+      if (connected) {
+        console.log('SSH-anslutning lyckades, id:', connectionId);
+        onConnect(connectionId);
       } else {
-        const errorMessage = sshResult && sshResult.error ? sshResult.error : t('sshConnectionFailed');
-        throw new Error(errorMessage);
+        throw new Error(t('sshConnectionFailed'));
       }
     } catch (err: any) {
-      console.error('SSH anslutningsfel:', err);
+      console.error('Anslutningsfel:', err);
       setError(err.message || t('unknownError'));
     } finally {
       setIsLoading(false);
     }
   };
   
-  const handleDeleteConnection = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    if (!confirm(t('confirmDelete'))) {
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
+  const handleDeleteConnection = async (id: string) => {
     try {
-      const result = await window.electronAPI.deleteConnection(id);
-      if (result.success) {
-        setConnections(prev => prev.filter(c => c.id !== id));
-        if (selectedConnection === id) {
-          setSelectedConnection(null);
-        }
-      } else {
-        throw new Error(result.error || t('failedToDeleteConnection'));
+      await window.electronAPI.deleteConnection(id);
+      // Antag att operationen lyckades om inget fel kastades
+      setConnections(prev => prev.filter(c => c.id !== id));
+      if (selectedConnection === id) {
+        setSelectedConnection(null);
       }
     } catch (err: any) {
       console.error('Kunde inte ta bort anslutning:', err);
-      setError(err.message || t('unknownError'));
-    } finally {
-      setIsLoading(false);
+      setError(err.message || t('failedToDeleteConnection'));
     }
   };
   
@@ -363,7 +358,7 @@ const SSHConnectionManager: React.FC<SSHConnectionManagerProps> = ({ onConnect, 
               )}
               <button 
                 className="delete-button" 
-                onClick={(e) => handleDeleteConnection(connection.id, e)}
+                onClick={() => handleDeleteConnection(connection.id)}
                 disabled={isLoading}
               >
                 {t('delete')}

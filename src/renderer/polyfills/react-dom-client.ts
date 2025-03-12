@@ -1,13 +1,18 @@
 /**
- * React DOM Client API Polyfill
+ * Polyfill för React DOM Client API (React 18)
  * 
- * Detta är en polyfill för React DOM Client API som används i React 18.
- * Den ger oss createRoot och hydrateRoot funktionerna och kan även fungera
- * med React 17 genom att emulera dessa funktioner med de äldre render/hydrate metoderna.
+ * Detta är en polyfill för createRoot och hydrateRoot funktionerna
+ * som introducerades i React 18. Den gör det möjligt att använda
+ * dessa funktioner även med äldre versioner av React.
  */
 
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
+
+// Utförligare loggning för felsökning
+console.log('react-dom-client.ts laddas...');
+console.log('React version:', (React as any).version);
+console.log('ReactDOM version:', (ReactDOM as any).version);
 
 // Importera ReactDOM som ReactDOMClient
 const ReactDOMClient = ReactDOM as any;
@@ -16,47 +21,63 @@ const ReactDOMClient = ReactDOM as any;
  * Kontrollerar om ReactDOM har tillgång till createRoot (React 18 API)
  */
 function hasCreateRootAPI(): boolean {
-  return ReactDOMClient && typeof ReactDOMClient.createRoot === 'function';
+  const hasCreateRoot = ReactDOMClient && typeof ReactDOMClient.createRoot === 'function';
+  console.log('Har createRoot API:', hasCreateRoot);
+  return hasCreateRoot;
 }
 
-// Exportera createRoot-funktionen som antingen använder React 18 API eller emulerar det med React 17 API
-export function createRoot(container: Element | DocumentFragment) {
-  // Om React 18 API är tillgängligt (createRoot finns)
-  if (hasCreateRootAPI()) {
-    return ReactDOMClient.createRoot(container);
-  }
+// Exportera createRoot och hydrateRoot funktioner
+export function createRoot(container: Element | DocumentFragment, options?: any) {
+  console.log('createRoot anropas med container:', container);
   
-  // Fallback för React 17 - emulera createRoot med render och unmountComponentAtNode
-  console.log('React 18 createRoot API är inte tillgängligt, använder fallback med React 17 render');
-  
-  return {
-    render(element: React.ReactElement) {
-      ReactDOM.render(element, container);
-    },
-    unmount() {
-      ReactDOM.unmountComponentAtNode(container);
+  try {
+    // Om ReactDOM har createRoot, använd den
+    if ('createRoot' in ReactDOM) {
+      console.log('Använder React 18 createRoot API');
+      return (ReactDOM as any).createRoot(container, options);
     }
-  };
+    
+    // Fallback för React 17 och tidigare
+    console.log('Fallback till React 17 render metod');
+    return {
+      render(element: React.ReactElement) {
+        ReactDOM.render(element, container, options?.onRecoverableError);
+      },
+      unmount() {
+        ReactDOM.unmountComponentAtNode(container);
+      }
+    };
+  } catch (error) {
+    console.error('Fel vid createRoot:', error);
+    throw error;
+  }
 }
 
-// Exportera hydrateRoot-funktionen som antingen använder React 18 API eller emulerar det med React 17 API
-export function hydrateRoot(container: Element, initialChildren: React.ReactNode) {
-  // Om React 18 API är tillgängligt (hydrateRoot finns)
-  if (ReactDOMClient && typeof ReactDOMClient.hydrateRoot === 'function') {
-    return ReactDOMClient.hydrateRoot(container, initialChildren);
-  }
+export function hydrateRoot(
+  container: Element | DocumentFragment,
+  initialChildren: React.ReactNode,
+  options?: any
+) {
+  console.log('hydrateRoot anropas med container:', container);
   
-  // Fallback för React 17 - emulera hydrateRoot med hydrate
-  console.log('React 18 hydrateRoot API är inte tillgängligt, använder fallback med React 17 hydrate');
-  
-  ReactDOM.hydrate(initialChildren as React.ReactElement, container);
-  
-  return {
-    render(element: React.ReactElement) {
-      ReactDOM.render(element, container);
-    },
-    unmount() {
-      ReactDOM.unmountComponentAtNode(container);
+  try {
+    // Om ReactDOM har hydrateRoot, använd den
+    if ('hydrateRoot' in ReactDOM) {
+      console.log('Använder React 18 hydrateRoot API');
+      return (ReactDOM as any).hydrateRoot(container, initialChildren, options);
     }
-  };
+    
+    // Fallback för React 17 och tidigare
+    console.log('Fallback till React 17 hydrate metod');
+    // Konvertera ReactNode till ReactElement för att matcha signaturen för ReactDOM.hydrate
+    ReactDOM.hydrate(initialChildren as React.ReactElement, container);
+    return {
+      unmount() {
+        ReactDOM.unmountComponentAtNode(container);
+      }
+    };
+  } catch (error) {
+    console.error('Fel vid hydrateRoot:', error);
+    throw error;
+  }
 } 

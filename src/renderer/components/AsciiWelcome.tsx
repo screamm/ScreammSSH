@@ -4,6 +4,7 @@ import '../styles/ascii-ui.css';
 import '../styles/ascii-terminal.css';
 import { parseAnsi, stripAnsi, containsAnsi } from '../utils/ansiParser';
 import SSHConnectionManager from './SSHConnectionManager';
+import { CustomTheme } from '../electron';
 
 interface AsciiWelcomeProps {
   onConnect: () => void;
@@ -473,11 +474,11 @@ const AsciiWelcome: React.FC<AsciiWelcomeProps> = ({ onConnect, currentTheme, la
     // Ladda terminalinställningar
     const loadSettings = async () => {
       try {
-        const settings = await window.electronAPI.getTerminalSettings();
-        if (settings) {
-          setRetroEffect(settings.retroEffect);
+        const settings = await window.electronAPI.getSettings();
+        if (settings && settings.terminal) {
+          setRetroEffect(settings.terminal.retroEffect);
           // Tillämpa effekten på dokumentet vid inladdning
-          document.documentElement.setAttribute('data-crt-effect', settings.retroEffect ? 'on' : 'off');
+          document.documentElement.setAttribute('data-crt-effect', settings.terminal.retroEffect ? 'on' : 'off');
         }
       } catch (error) {
         console.error('Kunde inte ladda terminalinställningar:', error);
@@ -542,9 +543,9 @@ const AsciiWelcome: React.FC<AsciiWelcomeProps> = ({ onConnect, currentTheme, la
       clearTimeout(autoStartTimer); // Glöm inte stoppa timern
       
       // Ta bort lyssnare
-      removeShellOutputListener();
-      removeShellErrorListener();
-      removeShellExitListener();
+      if (removeShellOutputListener) removeShellOutputListener();
+      if (removeShellErrorListener) removeShellErrorListener();
+      if (removeShellExitListener) removeShellExitListener();
       
       // Avsluta shell om det finns
       if (shellSessionId) {
@@ -690,27 +691,30 @@ const AsciiWelcome: React.FC<AsciiWelcomeProps> = ({ onConnect, currentTheme, la
     setTerminalOutput(prev => [...prev, t('sshConnected')]);
     
     // Lyssna på SSH-output
-    window.electronAPI.onSshOutput((data) => {
+    window.electronAPI.onShellOutput((data) => {
       if (data.id === sessionId) {
         if (data.output) {
           setTerminalOutput(prev => [...prev, data.output]);
-        } else if (data.error) {
-          setTerminalOutput(prev => [...prev, `ERROR: ${data.error}`]);
+        }
+        if (data.error) {
+          setTerminalOutput(prev => [...prev, data.error]);
         }
       }
     });
   };
   
   // SSH-kommandon
-  const executeSSHCommand = async (command: string) => {
-    if (!activeSSHSession) return false;
+  const executeSSHCommand = async (sessionId: string, command: string): Promise<boolean> => {
+    if (!sessionId) {
+      console.error('Inget aktivt SSH-session-ID');
+      return false;
+    }
     
     try {
-      const result = await window.electronAPI.sshExecute(activeSSHSession, command);
-      return result.success;
+      const result = await window.electronAPI.executeSSHCommand(sessionId, command);
+      return !!result;
     } catch (error) {
       console.error('SSH command error:', error);
-      setTerminalOutput(prev => [...prev, `SSH ERROR: ${error}`]);
       return false;
     }
   };
@@ -743,18 +747,18 @@ const AsciiWelcome: React.FC<AsciiWelcomeProps> = ({ onConnect, currentTheme, la
       // Hantera exit command för SSH speciellt
       if (lowerCommand === 'exit' || lowerCommand === 'quit' || lowerCommand === 'disconnect') {
         try {
-          await window.electronAPI.sshDisconnect(activeSSHSession);
+          await window.electronAPI.disconnectSSH(activeSSHSession);
           setActiveSSHSession(null);
           setTerminalOutput(prev => [...prev, t('sshDisconnected')]);
         } catch (error) {
           console.error('SSH disconnect error:', error);
-          setTerminalOutput(prev => [...prev, `SSH ERROR: ${error}`]);
+          setTerminalOutput(prev => [...prev, `${t('sshDisconnectError')}: ${(error as Error).message}`]);
         }
         return;
       }
       
       // Exekvera SSH-kommandot
-      await executeSSHCommand(command);
+      await executeSSHCommand(activeSSHSession, command);
       return;
     }
     
@@ -855,7 +859,34 @@ const AsciiWelcome: React.FC<AsciiWelcomeProps> = ({ onConnect, currentTheme, la
                 setTerminalOutput(prev => [...prev, t('changingTheme', { theme: themeArg })]);
                 setTheme(themeArg as Theme);
                 try {
-                  await window.electronAPI.saveTheme(themeArg);
+                  // Skapa ett CustomTheme-objekt
+                  const customTheme: CustomTheme = {
+                    id: themeArg,
+                    name: themeArg,
+                    colors: {
+                      background: '#000000',
+                      foreground: '#ffffff',
+                      cursor: '#ffffff',
+                      selectionBackground: '#4d4d4d',
+                      black: '#000000',
+                      brightBlack: '#666666',
+                      red: '#cc0000',
+                      brightRed: '#ff0000',
+                      green: '#00cc00',
+                      brightGreen: '#00ff00',
+                      yellow: '#cccc00',
+                      brightYellow: '#ffff00',
+                      blue: '#0000cc',
+                      brightBlue: '#0000ff',
+                      magenta: '#cc00cc',
+                      brightMagenta: '#ff00ff',
+                      cyan: '#00cccc',
+                      brightCyan: '#00ffff',
+                      white: '#cccccc',
+                      brightWhite: '#ffffff'
+                    }
+                  };
+                  await window.electronAPI.saveTheme(customTheme);
                 } catch (error) {
                   console.error('Kunde inte spara tema:', error);
                 }
@@ -905,34 +936,36 @@ const AsciiWelcome: React.FC<AsciiWelcomeProps> = ({ onConnect, currentTheme, la
                 setTerminalOutput(prev => [...prev, t('connectingSSH', { host })]);
                 
                 try {
-                  const sshResult = await window.electronAPI.sshConnect({
+                  const success = await window.electronAPI.connectSSH({
                     id: 'temp',
-                    host, 
-                    username, 
-                    password: commandParts[2],
-                    port: 22
+                    name: `${username}@${host}`,
+                    host,
+                    username,
+                    port: parseInt(commandParts[2]) || 22,
+                    password: commandParts[3]
                   });
                   
-                  if (sshResult.success) {
-                    setActiveSSHSession(sshResult.sessionId || 'temp');
+                  if (success) {
+                    setActiveSSHSession('temp');
                     setTerminalOutput(prev => [...prev, t('sshConnected', { host })]);
                     
                     // Lyssna på SSH-output
-                    window.electronAPI.onSshOutput((data) => {
-                      if (data.id === sshResult.sessionId) {
+                    window.electronAPI.onShellOutput((data) => {
+                      if (data.id === 'temp') {
                         if (data.output) {
                           setTerminalOutput(prev => [...prev, data.output]);
-                        } else if (data.error) {
-                          setTerminalOutput(prev => [...prev, `ERROR: ${data.error}`]);
+                        }
+                        if (data.error) {
+                          setTerminalOutput(prev => [...prev, data.error]);
                         }
                       }
                     });
                   } else {
-                    setTerminalOutput(prev => [...prev, t('sshConnectionFailed', { error: sshResult.error || 'Unknown error' })]);
+                    setTerminalOutput(prev => [...prev, t('sshConnectionFailed')]);
                   }
-                } catch (error: any) {
-                  console.error('SSH anslutningsfel:', error);
-                  setTerminalOutput(prev => [...prev, t('sshConnectionError', { error: error.message })]);
+                } catch (error) {
+                  console.error('SSH connection error:', error);
+                  setTerminalOutput(prev => [...prev, `${t('sshConnectionError')}: ${(error as Error).message}`]);
                 }
                 return;
               }

@@ -8,6 +8,12 @@ module.exports = {
    * Detta är ingångspunkten för renderer-processen
    */
   entry: './src/renderer/index.tsx',
+  output: {
+    path: require('path').resolve(__dirname, '.webpack/renderer'),
+    filename: 'main.js'
+  },
+  mode: 'development',
+  devtool: 'source-map',
   module: {
     rules: [
       ...rules,
@@ -29,6 +35,10 @@ module.exports = {
     }),
     new webpack.DefinePlugin({
       'process.env.NODE_DEBUG': JSON.stringify(process.env.NODE_DEBUG),
+      'process.env.NODE_ENV': JSON.stringify('development'),
+      // Definiera __dirname och __filename för browserkontext
+      '__dirname': JSON.stringify('/'),
+      '__filename': JSON.stringify('index.tsx')
     }),
   ],
   resolve: {
@@ -53,7 +63,7 @@ module.exports = {
     alias: {
       'react': require.resolve('react'),
       'react-dom': require.resolve('react-dom'),
-      'react-dom/client': path.resolve(__dirname, 'src/renderer/polyfills/react-dom-client.ts'),
+      'react-dom/client': path.resolve(__dirname, './src/renderer/polyfills/react-dom-client.ts'),
       'electron': require.resolve('./src/renderer/utils/electron-fix.ts'),
       'react/jsx-runtime': require.resolve('react/jsx-runtime'),
     },
@@ -66,5 +76,11 @@ module.exports = {
     headers: {
       'Content-Security-Policy': "default-src 'self'; font-src 'self' data:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"
     }
+  },
+  // Optimering för att undvika __dirname/__filename-fel
+  node: {
+    global: true,
+    __filename: false,
+    __dirname: false,
   }
 } 

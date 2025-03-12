@@ -2,6 +2,7 @@ const plugins = require('./webpack.plugins');
 const rules = require('./webpack.rules');
 const webpack = require('webpack');
 const nodeExternals = require('webpack-node-externals');
+const path = require('path');
 
 module.exports = {
   /**
@@ -9,6 +10,10 @@ module.exports = {
    * that runs in the main process.
    */
   entry: './src/main/index.ts',
+  output: {
+    path: path.resolve(__dirname, '.webpack/main'),
+    filename: 'main.js'
+  },
   module: {
     rules,
   },
@@ -41,4 +46,22 @@ module.exports = {
     __dirname: false,
     __filename: false,
   },
+  
+  // Explicit ange Node.js core-moduler som externa 
+  externalsPresets: { 
+    node: true // Detta gör alla inbyggda Node.js moduler till externa 
+  },
+  
+  // Lista alla Node.js core-moduler som vi använder som externa
+  externals: {
+    'child_process': 'commonjs child_process',
+    'fs': 'commonjs fs',
+    'path': 'commonjs path',
+    'os': 'commonjs os',
+    'util': 'commonjs util',
+    'crypto': 'commonjs crypto',
+    'electron': 'commonjs electron',
+    'ssh2': 'commonjs ssh2',
+    'electron-store': 'commonjs electron-store'
+  }
 }; 

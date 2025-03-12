@@ -1,379 +1,320 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { SavedConnection, storageService } from '../services/storage-service';
-import SavedConnections from './SavedConnections';
-import { KeyIcon, CheckIcon, PlusIcon, SaveIcon } from '../utils/icon-wrapper';
+import { connectionManager, ConnectionGroup } from '../services/ConnectionManager';
+import { SSHConnectionInfo } from '../services/SSHService';
 
 interface ConnectionFormProps {
-  onConnect: (config: {
-    id: string;
-    host: string;
-    port: number;
-    username: string;
-    password?: string;
-    privateKey?: string;
-    name: string;
-  }) => void;
+  connection?: SSHConnectionInfo; // Om vi redigerar en befintlig anslutning
+  onSave: (connection: SSHConnectionInfo) => void;
+  onCancel: () => void;
 }
 
-const ConnectionForm: React.FC<ConnectionFormProps> = ({ onConnect }) => {
-  const [host, setHost] = useState('');
-  const [port, setPort] = useState('22');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [privateKey, setPrivateKey] = useState('');
-  const [usePrivateKey, setUsePrivateKey] = useState(false);
-  const [name, setName] = useState('');
-  const [group, setGroup] = useState('');
-  const [showSaveForm, setShowSaveForm] = useState(false);
-  const [groups, setGroups] = useState<string[]>([]);
-  const [newGroup, setNewGroup] = useState('');
-  const [showNewGroupInput, setShowNewGroupInput] = useState(false);
-  
+const ConnectionForm: React.FC<ConnectionFormProps> = ({ connection, onSave, onCancel }) => {
+  const [name, setName] = useState(connection?.name || '');
+  const [host, setHost] = useState(connection?.host || '');
+  const [port, setPort] = useState(connection?.port || 22);
+  const [username, setUsername] = useState(connection?.username || '');
+  const [password, setPassword] = useState(connection?.password || '');
+  const [privateKey, setPrivateKey] = useState(connection?.privateKey || '');
+  const [authType, setAuthType] = useState<'password' | 'privateKey'>(connection?.privateKey ? 'privateKey' : 'password');
+  const [passphrase, setPassphrase] = useState(connection?.passphrase || '');
+  const [selectedGroup, setSelectedGroup] = useState(connection?.group || '');
+  const [color, setColor] = useState(connection?.color || '#4caf50');
+  const [notes, setNotes] = useState(connection?.notes || '');
+  const [groups, setGroups] = useState<ConnectionGroup[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showGroupForm, setShowGroupForm] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupColor, setNewGroupColor] = useState('#4caf50');
+
   useEffect(() => {
-    // Hämta existerande grupper
-    loadGroups();
+    // Ladda grupper
+    setGroups(connectionManager.getAllGroups());
   }, []);
-  
-  const loadGroups = async () => {
-    try {
-      const connections = await storageService.getSavedConnections();
-      const uniqueGroups = [...new Set(connections
-        .filter(conn => conn.group)
-        .map(conn => conn.group as string))];
-      setGroups(uniqueGroups);
-    } catch (error) {
-      console.error('Kunde inte hämta grupper:', error);
-    }
-  };
-  
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
     
-    switch (name) {
-      case 'host':
-        setHost(value);
-        break;
-      case 'port':
-        setPort(value);
-        break;
-      case 'username':
-        setUsername(value);
-        break;
-      case 'password':
-        setPassword(value);
-        break;
-      case 'privateKey':
-        setPrivateKey(value);
-        break;
-      case 'name':
-        setName(value);
-        break;
-      case 'group':
-        setGroup(value);
-        break;
-      case 'newGroup':
-        setNewGroup(value);
-        break;
-      default:
-        break;
+    if (!name.trim()) {
+      newErrors.name = 'Namn är obligatoriskt';
     }
-  };
-  
-  const togglePrivateKey = () => {
-    setUsePrivateKey(!usePrivateKey);
-    if (!usePrivateKey) {
-      setPassword('');
-    } else {
-      setPrivateKey('');
+    
+    if (!host.trim()) {
+      newErrors.host = 'Värd är obligatoriskt';
     }
+    
+    if (!port || port <= 0 || port > 65535) {
+      newErrors.port = 'Port måste vara mellan 1 och 65535';
+    }
+    
+    if (!username.trim()) {
+      newErrors.username = 'Användarnamn är obligatoriskt';
+    }
+    
+    if (authType === 'password' && !password.trim()) {
+      newErrors.password = 'Lösenord är obligatoriskt';
+    }
+    
+    if (authType === 'privateKey' && !privateKey.trim()) {
+      newErrors.privateKey = 'Privat nyckel är obligatoriskt';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
-  
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validera inmatningarna
-    if (!host || !username || (!password && !privateKey)) {
-      alert('Vänligen fyll i alla obligatoriska fält.');
+    if (!validateForm()) {
       return;
     }
     
-    const config = {
-      id: uuidv4(),
+    // Skapa anslutningsobjekt
+    const connectionData: SSHConnectionInfo = {
+      id: connection?.id || uuidv4(),
+      name,
       host,
-      port: parseInt(port, 10),
+      port,
       username,
-      name: name || `${username}@${host}`,
+      group: selectedGroup || undefined,
+      color,
+      notes: notes || undefined,
+      lastConnected: connection?.lastConnected
     };
     
-    if (usePrivateKey && privateKey) {
-      Object.assign(config, { privateKey });
-    } else if (password) {
-      Object.assign(config, { password });
+    // Lägg till autentiseringsuppgifter
+    if (authType === 'password') {
+      connectionData.password = password;
+    } else {
+      connectionData.privateKey = privateKey;
+      if (passphrase) {
+        connectionData.passphrase = passphrase;
+      }
     }
     
-    onConnect(config);
+    onSave(connectionData);
   };
-  
-  const handleSave = async () => {
-    if (!host || !username || (!password && !privateKey)) {
-      alert('Vänligen fyll i alla obligatoriska fält.');
+
+  const handleCreateGroup = () => {
+    if (!newGroupName.trim()) {
+      setErrors({ ...errors, newGroup: 'Gruppnamn är obligatoriskt' });
       return;
     }
     
-    // Använd angivet namn eller skapa ett baserat på värd/användare
-    const connectionName = name || `${username}@${host}`;
-    
-    try {
-      const connection: SavedConnection = {
-        id: uuidv4(),
-        name: connectionName,
-        host,
-        port: parseInt(port, 10),
-        username,
-        usePrivateKey,
-        group: showNewGroupInput ? newGroup : group
-      };
-      
-      if (usePrivateKey && privateKey) {
-        connection.privateKey = privateKey;
-      } else if (password) {
-        connection.password = password;
-      }
-      
-      await storageService.saveConnection(connection);
-      
-      // Återställ formuläret
-      setName('');
-      setShowSaveForm(false);
-      setShowNewGroupInput(false);
-      setNewGroup('');
-      
-      // Uppdatera grupperna
-      if (showNewGroupInput && newGroup) {
-        setGroups([...groups, newGroup]);
-      }
-      
-      // Visa bekräftelse
-      alert(`Anslutning "${connectionName}" har sparats.`);
-    } catch (error) {
-      console.error('Kunde inte spara anslutningen:', error);
-      alert('Kunde inte spara anslutningen. Försök igen senare.');
-    }
+    // Skapa ny grupp
+    connectionManager.createGroup({
+      name: newGroupName,
+      color: newGroupColor
+    }).then(newGroup => {
+      // Uppdatera grupperna och välj den nya gruppen
+      setGroups([...groups, newGroup]);
+      setSelectedGroup(newGroup.id);
+      setShowGroupForm(false);
+      setNewGroupName('');
+    });
   };
-  
-  const handleSavedConnectionSelect = (connection: SavedConnection) => {
-    setHost(connection.host);
-    setPort(connection.port.toString());
-    setUsername(connection.username);
-    setName(connection.name);
-    
-    if (connection.usePrivateKey) {
-      setUsePrivateKey(true);
-      setPrivateKey(connection.privateKey || '');
-      setPassword('');
-    } else {
-      setUsePrivateKey(false);
-      setPassword(connection.password || '');
-      setPrivateKey('');
-    }
-    
-    setGroup(connection.group || '');
-  };
-  
+
   return (
-    <div className="connection-container">
+    <div className="connection-form-container">
+      <div className="connection-form-header">
+        <h2>{connection ? 'Redigera anslutning' : 'Ny anslutning'}</h2>
+      </div>
+      
       <form className="connection-form" onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="host">Värd</label>
+          <label htmlFor="name">Namn</label>
           <input
+            id="name"
             type="text"
-            id="host"
-            name="host"
-            value={host}
-            onChange={handleChange}
-            placeholder="t.ex. example.com"
-            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={errors.name ? 'error' : ''}
           />
+          {errors.name && <div className="error-message">{errors.name}</div>}
         </div>
         
-        <div className="form-group">
-          <label htmlFor="port">Port</label>
-          <input
-            type="number"
-            id="port"
-            name="port"
-            value={port}
-            onChange={handleChange}
-            placeholder="22"
-            required
-          />
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="host">Värd</label>
+            <input
+              id="host"
+              type="text"
+              value={host}
+              onChange={(e) => setHost(e.target.value)}
+              className={errors.host ? 'error' : ''}
+            />
+            {errors.host && <div className="error-message">{errors.host}</div>}
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="port">Port</label>
+            <input
+              id="port"
+              type="number"
+              value={port}
+              onChange={(e) => setPort(parseInt(e.target.value) || 0)}
+              className={errors.port ? 'error' : ''}
+            />
+            {errors.port && <div className="error-message">{errors.port}</div>}
+          </div>
         </div>
         
         <div className="form-group">
           <label htmlFor="username">Användarnamn</label>
           <input
-            type="text"
             id="username"
-            name="username"
+            type="text"
             value={username}
-            onChange={handleChange}
-            placeholder="t.ex. admin"
-            required
+            onChange={(e) => setUsername(e.target.value)}
+            className={errors.username ? 'error' : ''}
           />
+          {errors.username && <div className="error-message">{errors.username}</div>}
         </div>
         
-        {!usePrivateKey ? (
+        <div className="form-group">
+          <label>Autentiseringsmetod</label>
+          <div className="auth-type-selector">
+            <label>
+              <input
+                type="radio"
+                name="authType"
+                value="password"
+                checked={authType === 'password'}
+                onChange={() => setAuthType('password')}
+              />
+              Lösenord
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="authType"
+                value="privateKey"
+                checked={authType === 'privateKey'}
+                onChange={() => setAuthType('privateKey')}
+              />
+              Privat nyckel
+            </label>
+          </div>
+        </div>
+        
+        {authType === 'password' ? (
           <div className="form-group">
             <label htmlFor="password">Lösenord</label>
             <input
-              type="password"
               id="password"
-              name="password"
+              type="password"
               value={password}
-              onChange={handleChange}
-              placeholder="Ditt lösenord"
-              required={!usePrivateKey}
+              onChange={(e) => setPassword(e.target.value)}
+              className={errors.password ? 'error' : ''}
             />
+            {errors.password && <div className="error-message">{errors.password}</div>}
           </div>
         ) : (
-          <div className="form-group">
-            <label htmlFor="privateKey">Privat nyckel</label>
-            <textarea
-              id="privateKey"
-              name="privateKey"
-              value={privateKey}
-              onChange={handleChange as any}
-              placeholder="Börja med -----BEGIN RSA PRIVATE KEY-----"
-              required={usePrivateKey}
-              rows={4}
-              style={{ 
-                resize: 'vertical', 
-                minHeight: '80px',
-                fontFamily: 'monospace',
-                fontSize: '12px'
-              }}
-            />
-          </div>
+          <>
+            <div className="form-group">
+              <label htmlFor="privateKey">Privat nyckel</label>
+              <textarea
+                id="privateKey"
+                value={privateKey}
+                onChange={(e) => setPrivateKey(e.target.value)}
+                rows={5}
+                className={errors.privateKey ? 'error' : ''}
+              />
+              {errors.privateKey && <div className="error-message">{errors.privateKey}</div>}
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="passphrase">Lösenfras (om krypterad)</label>
+              <input
+                id="passphrase"
+                type="password"
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value)}
+              />
+            </div>
+          </>
         )}
         
-        <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <button 
-            type="button" 
-            onClick={togglePrivateKey}
-            style={{ 
-              marginRight: '10px',
-              backgroundColor: usePrivateKey ? 'var(--accent-color)' : 'var(--secondary-bg-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-          >
-            <KeyIcon /> 
-            {usePrivateKey ? 'Använder nyckel' : 'Använd nyckel'}
-          </button>
-          
-          <button 
-            type="submit"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-          >
-            <CheckIcon /> Anslut
-          </button>
-          
-          <SavedConnections onSelect={handleSavedConnectionSelect} />
-          
-          <button 
-            type="button"
-            onClick={() => setShowSaveForm(!showSaveForm)}
-            style={{ 
-              marginLeft: 'auto',
-              backgroundColor: showSaveForm ? 'var(--primary-bg-color)' : 'var(--accent-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-          >
-            <SaveIcon /> {showSaveForm ? 'Avbryt' : 'Spara'}
-          </button>
+        <div className="form-group">
+          <label htmlFor="group">Grupp</label>
+          <div className="group-selector">
+            <select
+              id="group"
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+            >
+              <option value="">Ingen grupp</option>
+              {groups.map(group => (
+                <option key={group.id} value={group.id}>{group.name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="new-group-btn"
+              onClick={() => setShowGroupForm(true)}
+            >
+              +
+            </button>
+          </div>
         </div>
         
-        {showSaveForm && (
-          <div className="save-form">
+        {showGroupForm && (
+          <div className="group-form">
+            <h3>Ny grupp</h3>
             <div className="form-group">
-              <label htmlFor="name">Anslutningsnamn</label>
+              <label htmlFor="newGroupName">Gruppnamn</label>
               <input
+                id="newGroupName"
                 type="text"
-                id="name"
-                name="name"
-                value={name}
-                onChange={handleChange}
-                placeholder={`${username}@${host}`}
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                className={errors.newGroup ? 'error' : ''}
+              />
+              {errors.newGroup && <div className="error-message">{errors.newGroup}</div>}
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="newGroupColor">Färg</label>
+              <input
+                id="newGroupColor"
+                type="color"
+                value={newGroupColor}
+                onChange={(e) => setNewGroupColor(e.target.value)}
               />
             </div>
             
-            <div className="form-group">
-              <label htmlFor="group">Grupp</label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {!showNewGroupInput ? (
-                  <>
-                    <select
-                      id="group"
-                      name="group"
-                      value={group}
-                      onChange={handleChange}
-                      style={{ flexGrow: 1 }}
-                    >
-                      <option value="">Ingen grupp</option>
-                      {groups.map(g => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setShowNewGroupInput(true)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-                    >
-                      <PlusIcon /> Ny
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <input
-                      type="text"
-                      id="newGroup"
-                      name="newGroup"
-                      value={newGroup}
-                      onChange={handleChange}
-                      placeholder="Ange nytt gruppnamn"
-                      style={{ flexGrow: 1 }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewGroupInput(false)}
-                      style={{ display: 'flex', alignItems: 'center' }}
-                    >
-                      Avbryt
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-              <button
-                type="button"
-                onClick={handleSave}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-              >
-                <SaveIcon /> Spara anslutning
-              </button>
+            <div className="group-form-actions">
+              <button type="button" onClick={handleCreateGroup}>Spara grupp</button>
+              <button type="button" onClick={() => setShowGroupForm(false)}>Avbryt</button>
             </div>
           </div>
         )}
+        
+        <div className="form-group">
+          <label htmlFor="color">Färg</label>
+          <input
+            id="color"
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+          />
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="notes">Anteckningar</label>
+          <textarea
+            id="notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+          />
+        </div>
+        
+        <div className="form-actions">
+          <button type="submit" className="save-btn">Spara</button>
+          <button type="button" className="cancel-btn" onClick={onCancel}>Avbryt</button>
+        </div>
       </form>
     </div>
   );

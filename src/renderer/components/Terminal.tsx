@@ -1,342 +1,203 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { formatOutput } from '../utils/terminal-formatter';
-import { HistoryIcon, FileIcon, TerminalIcon } from '../utils/icon-wrapper';
-import FileExplorer from './FileExplorer';
-import { Theme } from './ThemeSelector';
-import '../styles/Terminal.css';
+import React, { useEffect, useRef, useState } from 'react';
+import { terminalService } from '../services/TerminalService';
+import { SSHConnectionInfo } from '../services/SSHService';
+import { connectionManager } from '../services/ConnectionManager';
+import 'xterm/css/xterm.css';
 
 interface TerminalProps {
-  sshConfig: {
-    id: string;
-    host: string;
-    port: number;
-    username: string;
-    password?: string;
-    privateKey?: string;
-    name: string;
-  };
-  onConnectionStatus?: (status: boolean) => void;
-  theme?: Theme;
+  connection?: SSHConnectionInfo;
+  autoConnect?: boolean;
 }
 
-type Command = {
-  text: string;
-  timestamp: number;
-};
-
-const Terminal: React.FC<TerminalProps> = ({ sshConfig, onConnectionStatus, theme = 'default' }) => {
-  const [output, setOutput] = useState<string>('');
-  const [command, setCommand] = useState<string>('');
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [currentTab, setCurrentTab] = useState<'terminal' | 'files'>('terminal');
-  const [commandHistory, setCommandHistory] = useState<Command[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
-  const [showHistoryDropdown, setShowHistoryDropdown] = useState<boolean>(false);
-  
+const Terminal: React.FC<TerminalProps> = ({ connection, autoConnect = false }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  
-  // Anslut till servern när komponenten monteras
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const connectionIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    connectToServer();
+    // När komponenten monteras, lyssna på förändringar i storlek
+    const handleResize = () => {
+      if (connectionIdRef.current) {
+        terminalService.fitTerminal(connectionIdRef.current);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Städa upp när komponenten avmonteras
     return () => {
-      // Koppla från servern när komponenten avmonteras
-      if (isConnected) {
-        window.electronAPI.sshDisconnect(sshConfig.id)
-          .catch(err => console.error('Kunde inte koppla från:', err));
+      window.removeEventListener('resize', handleResize);
+      
+      if (connectionIdRef.current) {
+        // Rensa terminalen (men koppla inte från)
+        terminalService.destroyTerminal(connectionIdRef.current);
       }
     };
   }, []);
-  
-  // Påverka utmatningen när temat ändras
+
   useEffect(() => {
-    if (output && !output.includes(getWelcomeMessage())) {
-      // Lägg inte till välkomstmeddelandet om vi redan har utmatning
-      // men vi kan lägga till en temaändring-markör om vi vill
-      setOutput(prev => prev + `\n\n--- Tema ändrat till ${theme} ---\n\n`);
+    // När anslutningen ändras, återställ terminalen och anslut om autoConnect är true
+    resetTerminal();
+    
+    if (connection && autoConnect) {
+      connectToSSH();
     }
-  }, [theme]);
-  
-  // Anpassa terminalens prompt-tecken baserat på tema
-  const getPromptSymbol = () => {
-    switch(theme) {
-      case 'nostromo':
-        return '█ ';
-      case 'classic-green':
-        return '$ ';
-      case 'htop':
-        return '# ';
-      case 'cyan-ssh':
-        return '> ';
-      default:
-        return '> ';
+  }, [connection, autoConnect]);
+
+  const resetTerminal = () => {
+    // Rensa eventuell befintlig terminal
+    if (connectionIdRef.current) {
+      terminalService.destroyTerminal(connectionIdRef.current);
+      connectionIdRef.current = null;
+    }
+    
+    setIsConnected(false);
+    setIsLoading(false);
+    setError(null);
+    
+    if (connection && terminalRef.current) {
+      // Initalisera en ny terminal för den valda anslutningen
+      connectionIdRef.current = connection.id;
+      terminalService.createTerminal(connection.id, terminalRef.current);
+      
+      // Visa välkomstmeddelande
+      terminalService.writeToTerminal(
+        connection.id,
+        `\r\n\x1b[1;34m=== ScreammSSH Terminal ===\x1b[0m\r\n` +
+        `\r\nAnslutning: \x1b[1;32m${connection.name}\x1b[0m\r\n` +
+        `Host: \x1b[1;33m${connection.username}@${connection.host}:${connection.port}\x1b[0m\r\n\r\n` +
+        `Klicka på "Anslut" för att upprätta en SSH-anslutning eller skriv kommando nedan.\r\n\r\n`
+      );
     }
   };
-  
-  // Anpassa välkomstmeddelande baserat på tema
-  const getWelcomeMessage = () => {
-    switch(theme) {
-      case 'nostromo':
-        return `NOSTROMO MU/TH/UR 6000\nANSLUTER TILL ${sshConfig.host.toUpperCase()}...\n`;
-      case 'classic-green':
-        return `AnderShell 3000 v0.1\nAnsluter till ${sshConfig.host}...\n`;
-      case 'htop':
-        return `Terminal v1.0 [${sshConfig.username}@${sshConfig.host}]\nAnsluter...\n`;
-      case 'cyan-ssh':
-        return `SSH-Klient v1.0\nAnsluter till ${sshConfig.host} som ${sshConfig.username}...\n`;
-      default:
-        return `Ansluter till servern...\n`;
+
+  const connectToSSH = async () => {
+    if (!connection) {
+      setError('Ingen anslutning vald');
+      return;
     }
-  };
-  
-  // Scrolla till botten när utmatning ändras
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [output]);
-  
-  // Fokusera på inmatningsfältet när komponenten monteras eller vid tabbbyte
-  useEffect(() => {
-    if (currentTab === 'terminal' && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [currentTab]);
-  
-  // Använd lokal lagring för kommandohistorik
-  useEffect(() => {
-    const savedHistory = localStorage.getItem(`command_history_${sshConfig.id}`);
-    if (savedHistory) {
-      setCommandHistory(JSON.parse(savedHistory));
-    }
-  }, [sshConfig.id]);
-  
-  // Spara kommandohistorik i lokal lagring
-  useEffect(() => {
-    if (commandHistory.length > 0) {
-      localStorage.setItem(`command_history_${sshConfig.id}`, JSON.stringify(commandHistory));
-    }
-  }, [commandHistory, sshConfig.id]);
-  
-  const connectToServer = async () => {
+    
     try {
       setIsLoading(true);
-      setOutput(getWelcomeMessage());
+      setError(null);
       
-      const result = await window.electronAPI.sshConnect({
-        host: sshConfig.host,
-        port: sshConfig.port,
-        username: sshConfig.username,
-        password: sshConfig.password,
-        privateKey: sshConfig.privateKey
-      });
+      // Visa anslutningsmeddelande i terminalen
+      if (connectionIdRef.current) {
+        terminalService.writeToTerminal(
+          connectionIdRef.current,
+          `\r\n\x1b[33mAnsluter till ${connection.host}...\x1b[0m\r\n`
+        );
+      }
       
-      if (result.success) {
+      // Anslut med SSH
+      const connected = await connectionManager.connect(connection.id);
+      
+      if (connected) {
         setIsConnected(true);
-        const connectedMessage = theme === 'nostromo' 
-          ? `ANSLUTNING ETABLERAD: ${sshConfig.username.toUpperCase()}@${sshConfig.host.toUpperCase()}\n`
-          : `Ansluten till ${sshConfig.host} som ${sshConfig.username}\n`;
-        setOutput(prev => prev + connectedMessage);
         
-        // Exekvera ett initialt kommando för att visa information om servern
-        const initResult = await window.electronAPI.sshExecute(sshConfig.id, 'uname -a && echo "Nuvarande katalog: $(pwd)"');
-        const formattedOutput = theme === 'nostromo' 
-          ? formatOutput(initResult.stdout).toUpperCase() 
-          : formatOutput(initResult.stdout);
-        setOutput(prev => prev + formattedOutput);
+        // Öppna ett shell i den anslutna sessionen
+        const shellOpened = await connectionManager.openShell(connection.id);
         
-        // Meddela överordnad komponent om anslutningsstatus
-        if (onConnectionStatus) {
-          onConnectionStatus(true);
+        if (!shellOpened) {
+          throw new Error('Kunde inte öppna shell');
+        }
+        
+        // Justera terminalstorleken efter anslutning
+        if (connectionIdRef.current) {
+          terminalService.fitTerminal(connectionIdRef.current);
         }
       } else {
-        setOutput(prev => prev + `Anslutningsfel: ${result.error}\n`);
-        if (onConnectionStatus) {
-          onConnectionStatus(false);
-        }
+        throw new Error('Anslutning misslyckades');
       }
-    } catch (error: any) {
-      setOutput(prev => prev + `Anslutningsfel: ${error.message}\n`);
-      if (onConnectionStatus) {
-        onConnectionStatus(false);
+    } catch (err) {
+      setError(err.message || 'Anslutning misslyckades');
+      
+      if (connectionIdRef.current) {
+        terminalService.writeToTerminal(
+          connectionIdRef.current,
+          `\r\n\x1b[31mFel: ${err.message || 'Anslutning misslyckades'}\x1b[0m\r\n`
+        );
       }
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const handleTabChange = (tab: 'terminal' | 'files') => {
-    setCurrentTab(tab);
-  };
-  
-  const handleCommandSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!command.trim() || !isConnected) return;
+
+  const disconnectFromSSH = () => {
+    if (!connection) return;
     
-    const trimmedCommand = command.trim();
-    
-    // Lägg till kommandot i terminalen
-    setOutput(prev => prev + `\n${getPromptSymbol()}${trimmedCommand}\n`);
-    
-    // Rensa inmatningen
-    setCommand('');
-    
-    // Återställ historikindexet
-    setHistoryIndex(-1);
-    
-    // Spara till historiken om det inte är ett duplikat av det senaste kommandot
-    const newCommand = { text: trimmedCommand, timestamp: Date.now() };
-    if (commandHistory.length === 0 || commandHistory[0].text !== trimmedCommand) {
-      setCommandHistory(prev => [newCommand, ...prev].slice(0, 100));
-    }
-    
-    try {
-      setIsLoading(true);
+    if (connectionManager.isConnected(connection.id)) {
+      connectionManager.disconnect(connection.id);
       
-      // Exekvera kommandot
-      const result = await window.electronAPI.sshExecute(sshConfig.id, trimmedCommand);
-      
-      // Formatera och visa utmatningen
-      if (result.stdout) {
-        setOutput(prev => prev + formatOutput(result.stdout));
+      if (connectionIdRef.current) {
+        terminalService.writeToTerminal(
+          connectionIdRef.current,
+          `\r\n\x1b[33mFrånkopplad från ${connection.host}\x1b[0m\r\n`
+        );
       }
       
-      if (result.stderr) {
-        setOutput(prev => prev + formatOutput(result.stderr, 'error'));
-      }
-      
-      if (result.code !== 0) {
-        setOutput(prev => prev + `\nAvslutad med felkod: ${result.code}\n`);
-      }
-    } catch (error: any) {
-      setOutput(prev => prev + `Fel vid exekvering: ${error.message}\n`);
-    } finally {
-      setIsLoading(false);
+      setIsConnected(false);
     }
   };
-  
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Hantera upp-/nerpil för kommandohistorik
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      
-      if (commandHistory.length === 0) return;
-      
-      const newIndex = historyIndex < commandHistory.length - 1 ? historyIndex + 1 : historyIndex;
-      setHistoryIndex(newIndex);
-      setCommand(commandHistory[newIndex].text);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      
-      if (historyIndex <= 0) {
-        setHistoryIndex(-1);
-        setCommand('');
-        return;
-      }
-      
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setCommand(commandHistory[newIndex].text);
-    } else if (e.key === 'Tab') {
-      // TODO: Implementera tab-komplettering
-      e.preventDefault();
-    } else if (e.key === 'c' && e.ctrlKey) {
-      // Avbryt kommando med Ctrl+C
-      setOutput(prev => prev + '\n^C\n');
-      setCommand('');
+
+  const clearTerminal = () => {
+    if (connectionIdRef.current) {
+      terminalService.clearTerminal(connectionIdRef.current);
     }
   };
-  
-  const toggleHistoryDropdown = () => {
-    setShowHistoryDropdown(prev => !prev);
-  };
-  
-  const selectFromHistory = (cmd: string) => {
-    setCommand(cmd);
-    setShowHistoryDropdown(false);
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
-  
-  const formatTimestamp = (timestamp: number): string => {
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  };
-  
+
   return (
-    <div className="terminal-with-tabs">
-      <div className="terminal-tabs">
-        <button
-          className={`terminal-tab-button ${currentTab === 'terminal' ? 'active' : ''}`}
-          onClick={() => handleTabChange('terminal')}
-        >
-          <TerminalIcon /> Terminal
-        </button>
-        <button
-          className={`terminal-tab-button ${currentTab === 'files' ? 'active' : ''}`}
-          onClick={() => handleTabChange('files')}
-        >
-          <FileIcon /> Filer
-        </button>
-      </div>
-      
-      {currentTab === 'terminal' ? (
-        <div className="terminal-container">
+    <div className="terminal-container">
+      {!connection ? (
+        <div className="terminal-placeholder">
+          <div className="placeholder-content">
+            <h3>Ingen anslutning vald</h3>
+            <p>Välj en anslutning från listan för att börja</p>
+          </div>
+        </div>
+      ) : (
+        <>
           <div className="terminal-header">
-            <span className="terminal-title">{sshConfig.name} - {sshConfig.username}@{sshConfig.host}:{sshConfig.port}</span>
-            <div className="history-button-container">
-              <button
-                className="history-button"
-                onClick={toggleHistoryDropdown}
-                disabled={commandHistory.length === 0}
-                title="Visa kommandohistorik"
-              >
-                <HistoryIcon />
-              </button>
-              
-              {showHistoryDropdown && commandHistory.length > 0 && (
-                <div className="history-dropdown">
-                  {commandHistory.map((cmd, index) => (
-                    <div
-                      key={index}
-                      className="history-item"
-                      onClick={() => selectFromHistory(cmd.text)}
-                      title={formatTimestamp(cmd.timestamp)}
-                    >
-                      {cmd.text}
-                    </div>
-                  ))}
-                </div>
+            <div className="terminal-title">
+              <span className="connection-name">{connection.name}</span>
+              <span className="connection-host">{connection.username}@{connection.host}:{connection.port}</span>
+            </div>
+            <div className="terminal-actions">
+              {!isConnected ? (
+                <button 
+                  className="connect-btn"
+                  onClick={connectToSSH}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Ansluter...' : 'Anslut'}
+                </button>
+              ) : (
+                <button 
+                  className="disconnect-btn"
+                  onClick={disconnectFromSSH}
+                >
+                  Koppla från
+                </button>
               )}
+              <button 
+                className="clear-btn"
+                onClick={clearTerminal}
+              >
+                Rensa
+              </button>
             </div>
           </div>
           
-          <div className="terminal-output" ref={terminalRef}>
-            <pre>{output}</pre>
-            {isLoading && <div className="terminal-spinner"></div>}
-          </div>
+          {error && (
+            <div className="terminal-error">
+              {error}
+            </div>
+          )}
           
-          <form className="terminal-input-form" onSubmit={handleCommandSubmit}>
-            <span className="terminal-prompt">{getPromptSymbol()}</span>
-            <input
-              ref={inputRef}
-              type="text"
-              className="terminal-input"
-              value={command}
-              onChange={e => setCommand(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ange ett kommando..."
-              disabled={!isConnected || isLoading}
-            />
-          </form>
-        </div>
-      ) : (
-        <FileExplorer 
-          connectionId={sshConfig.id} 
-          theme={theme}
-        />
+          <div className="terminal-xterm" ref={terminalRef} />
+        </>
       )}
     </div>
   );

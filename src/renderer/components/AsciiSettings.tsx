@@ -65,9 +65,9 @@ const AsciiSettings: React.FC<AsciiSettingsProps> = ({
     const loadSettings = async () => {
       try {
         // Ladda terminalinställningar för att få retroEffect
-        const settings = await window.electronAPI.getTerminalSettings();
-        if (settings) {
-          setRetroEffect(settings.retroEffect);
+        const settings = await window.electronAPI.getSettings();
+        if (settings && settings.terminal) {
+          setRetroEffect(settings.terminal.retroEffect);
         }
         
         // Ladda sparade anpassade teman

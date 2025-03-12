@@ -92,42 +92,38 @@ const AsciiConnectionForm: React.FC<AsciiConnectionFormProps> = ({
     setShowSaved(false);
   };
   
-  const handleSaveConnection = async () => {
-    if (!host || !username) {
-      setError('Värd och användarnamn krävs');
-      return;
-    }
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
     
-    // Kontrollera att porten är ett nummer
-    const portNumber = parseInt(port, 10);
-    if (isNaN(portNumber) || portNumber <= 0 || portNumber > 65535) {
-      setError('Ogiltig port');
+    if (!name || !host || !port || !username) {
+      setError('Värd, port och användarnamn krävs');
       return;
     }
     
     try {
       const connectionToSave = {
         id: uuidv4(),
+        name,
         host,
-        port: portNumber,
+        port: Number(port),
         username,
         password: usePrivateKey ? undefined : password,
         privateKey: usePrivateKey ? privateKey : undefined,
-        name: name || `${username}@${host}`,
-        usePrivateKey
+        passphrase: undefined,
+        group: undefined,
+        notes: ''
       };
       
-      const result = await window.electronAPI.saveConnection(connectionToSave);
+      await window.electronAPI.saveConnection(connectionToSave);
       
-      if (result.success && result.connections) {
-        setSavedConnections(result.connections);
-        setError('');
-      } else {
-        setError(result.error || 'Kunde inte spara anslutningen');
-      }
+      // Antag att operationen lyckades om inget fel kastades
+      setError('');
+      
+      // Informera föräldern om den sparade anslutningen
+      onConnect(connectionToSave);
     } catch (error) {
       console.error('Fel vid sparande av anslutning:', error);
-      setError('Ett fel uppstod när anslutningen skulle sparas');
+      setError(error instanceof Error ? error.message : 'Kunde inte spara anslutningen');
     }
   };
 
@@ -247,7 +243,7 @@ const AsciiConnectionForm: React.FC<AsciiConnectionFormProps> = ({
               <button 
                 type="button" 
                 className="ascii-button secondary"
-                onClick={handleSaveConnection}
+                onClick={handleSave}
               >
                 [ SPARA ]
               </button>

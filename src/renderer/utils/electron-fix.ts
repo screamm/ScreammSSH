@@ -32,19 +32,26 @@ export const mockElectron = {
 
 // En hjälpfunktion som kan användas istället för direkt fs-åtkomst
 export const fileExists = async (path: string, connectionId?: string): Promise<boolean> => {
-  // Om vi har en connectionId, använd SFTP för att kontrollera om filen existerar
-  if (connectionId && window.electronAPI?.sftpExists) {
+  // Om vi har en connectionId, försök lista katalogen och leta efter filen
+  if (connectionId && window.electronAPI?.sftpListDirectory) {
     try {
-      const response = await window.electronAPI.sftpExists(connectionId, path);
-      return response.exists || false;
+      // Extrahera katalognamn och filnamn från sökvägen
+      const lastSlashIndex = path.lastIndexOf('/');
+      const directory = lastSlashIndex > 0 ? path.substring(0, lastSlashIndex) : '/';
+      const filename = lastSlashIndex > 0 ? path.substring(lastSlashIndex + 1) : path;
+      
+      // Lista katalogen
+      const files = await window.electronAPI.sftpListDirectory(connectionId, directory);
+      
+      // Leta efter filen i listan
+      return files.some(file => file.filename === filename);
     } catch (error) {
       console.error('Fel vid kontroll om filen existerar:', error);
       return false;
     }
   }
   
-  // Annars returnera false eftersom renderer-processen inte kan komma åt filsystemet direkt
-  console.warn('fileExists anropades utan connectionId i renderer-processen');
+  // För lokala filer, endast tillgängligt i main-processen
   return false;
 };
 
