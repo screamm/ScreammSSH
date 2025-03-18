@@ -1,90 +1,121 @@
 import React from 'react';
-import * as ReactDOM from 'react-dom';
+import ReactDOM from 'react-dom/client';
 import './styles/app.css';
 import './styles/ascii-ui.css';
+import './styles/crt-effect.css';
+import App from './App';
+import './styles/index.css';
+import './polyfills';
 
-console.log('index.tsx laddas...');
+// Loggning för debugging
+console.log('🚀 Renderer-process startar');
 console.log('React version:', React.version);
-console.log('ReactDOM version:', (ReactDOM as any).version);
 
-// Simpel testkomponent
-const App = () => {
-  console.log('App-komponenten renderas');
-  return (
-    <div style={{ padding: '20px', color: 'white', fontFamily: 'monospace' }}>
-      <h1>React fungerar!</h1>
-      <p>Detta är en enkel testkomponent.</p>
-    </div>
-  );
-};
+// Kontrollera om electronAPI finns tillgängligt
+if (window.electronAPI) {
+  console.log('✅ electronAPI är tillgängligt i React-appen');
+} else {
+  console.warn('⚠️ electronAPI är INTE tillgängligt i React-appen');
+}
 
-// Funktion för att montera React
-const mountReact = () => {
-  console.log('mountReact anropas');
-  try {
-    const container = document.getElementById('app');
-    console.log('Container element:', container);
-    
-    if (!container) {
-      throw new Error('Kunde inte hitta "app" element i DOM');
-    }
-    
-    console.log('Renderar React-applikation...');
-    ReactDOM.render(<App />, container);
-    console.log('React-applikation renderad');
-    
-    // Skriv ett meddelande direkt till DOM för att bekräfta
-    const messageDiv = document.createElement('div');
-    messageDiv.innerText = 'React har monterats!';
-    messageDiv.style.color = 'lime';
-    messageDiv.style.padding = '10px';
-    messageDiv.style.fontFamily = 'monospace';
-    document.body.appendChild(messageDiv);
-  } catch (error) {
-    console.error('Fel vid initialisering av applikationen:', error);
-    document.body.innerHTML += `
-      <div style="padding: 20px; color: #ff6b6b; font-family: sans-serif;">
-        <h2>Ett fel inträffade vid laddning av applikationen</h2>
-        <p style="font-family: monospace; background: #333; padding: 10px; border-radius: 4px;">
-          ${error instanceof Error ? error.message : String(error)}
-        </p>
-        <p>Kontrollera konsolen för mer information.</p>
-      </div>
-    `;
-  }
-};
+// Skapa en wrapper-komponent som hanterar felhantering
+const AppWrapper: React.FC = () => {
+  // Använd React.useState för att hantera fel
+  const [error, setError] = React.useState<Error | null>(null);
 
-// Försök montera React på flera sätt
-console.log('Försöker montera React...');
+  // Använd React.useEffect för att sätta upp global felhantering
+  React.useEffect(() => {
+    // Spara den ursprungliga felhanteraren
+    const originalErrorHandler = window.onerror;
 
-// Metod 1: Direkt montering
-mountReact();
-
-// Metod 2: Vänta på DOMContentLoaded
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOMContentLoaded triggad');
-  mountReact();
-});
-
-// Metod 3: Timeout
-setTimeout(mountReact, 1000);
-
-// Metod 4: Mutation Observer för att övervaka DOM-ändringar
-const observer = new MutationObserver((mutations) => {
-  for (const mutation of mutations) {
-    if (mutation.type === 'childList') {
-      const appElement = document.getElementById('app');
-      if (appElement) {
-        console.log('App-element hittades via MutationObserver');
-        observer.disconnect();
-        mountReact();
-        break;
+    // Sätt upp en global felhanterare
+    window.onerror = (message, source, lineno, colno, error) => {
+      console.error('Global error:', message, error);
+      setError(error || new Error(String(message)));
+      
+      // Anropa den ursprungliga felhanteraren om den finns
+      if (typeof originalErrorHandler === 'function') {
+        return originalErrorHandler(message, source, lineno, colno, error);
       }
-    }
-  }
-});
+      return false;
+    };
 
-observer.observe(document.documentElement, {
-  childList: true,
-  subtree: true
-}); 
+    // Städa upp när komponenten avmonteras
+    return () => {
+      window.onerror = originalErrorHandler;
+    };
+  }, []);
+
+  // Visa ett felmeddelande om något gick fel
+  if (error) {
+    return (
+      <div style={{ 
+        padding: '20px', 
+        color: 'red', 
+        background: '#222',
+        fontFamily: 'monospace',
+        border: '1px solid red',
+        borderRadius: '5px',
+        margin: '20px'
+      }}>
+        <h2>Ett fel inträffade</h2>
+        <p>{error.message}</p>
+        <details>
+          <summary>Visa stackspårning</summary>
+          <pre>{error.stack}</pre>
+        </details>
+        <button 
+          onClick={() => window.location.reload()}
+          style={{
+            background: '#333',
+            color: 'white',
+            border: '1px solid white',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            marginTop: '10px'
+          }}
+        >
+          Ladda om appen
+        </button>
+      </div>
+    );
+  }
+
+  // Rendera appen normalt om inget fel inträffade
+  return <App />;
+};
+
+// Hämta rot-elementet
+const rootElement = document.getElementById('app');
+
+// Kontrollera att rot-elementet finns
+if (!rootElement) {
+  console.error('Kunde inte hitta rot-elementet med id "app"');
+  
+  // Skapa ett rot-element om det inte finns
+  const newRootElement = document.createElement('div');
+  newRootElement.id = 'app';
+  document.body.appendChild(newRootElement);
+  
+  console.log('Skapade ett nytt rot-element med id "app"');
+  
+  // Använd det nya rot-elementet
+  const root = ReactDOM.createRoot(newRootElement);
+  root.render(
+    <React.StrictMode>
+      <AppWrapper />
+    </React.StrictMode>
+  );
+} else {
+  // Använd det befintliga rot-elementet
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <React.StrictMode>
+      <AppWrapper />
+    </React.StrictMode>
+  );
+}
+
+// Logga att React-appen har renderats
+console.log('React-app har renderats'); 

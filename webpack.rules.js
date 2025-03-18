@@ -21,17 +21,24 @@ module.exports = [
     test: /node_modules\/ssh2\/.*\.js$/,
     use: 'null-loader',
   },
+  // Regler för TypeScript/React
   {
     test: /\.tsx?$/,
     exclude: /(node_modules|\.webpack)/,
     use: {
       loader: 'ts-loader',
       options: {
-        transpileOnly: true,
+        transpileOnly: true, // Skippa typkontroll för snabbare byggtid
       },
     },
   },
-  // Regel för att kopiera assets-katalogen
+  // Regler för språkfiler
+  {
+    test: /\.json$/,
+    type: 'javascript/auto',
+    exclude: /(node_modules|\.webpack)/,
+  },
+  // Laddare för font-filer
   {
     test: /\.(woff|woff2|eot|ttf|otf)$/i,
     type: 'asset/resource',

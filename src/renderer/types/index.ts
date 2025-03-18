@@ -1,5 +1,3 @@
-/// <reference path="./global.d.ts" /> 
-
 // Typesdefinitioner för ScreammSSH
 
 // Theme-typer

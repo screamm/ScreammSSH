@@ -1,553 +1,257 @@
 /**
  * HUVUDFILEN FÖR ELECTRON MAIN PROCESS
- * Denna fil körs i huvudprocessen och är ansvarig för 
- * att skapa fönster och hantera IPC-kommunikation.
+ * 
+ * En förenklad version som fokuserar på grundfunktioner
  */
 
 // Webpack deklarationer
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 
-// Importera nödvändiga moduler
-import { app, BrowserWindow, ipcMain } from 'electron';
-import { spawn } from 'child_process';
-import * as os from 'os';
-import Store from 'electron-store';
-import * as SSH2 from 'ssh2';
+// Inaktivera säkerhetsvarningar under utveckling
+// OBS: Detta bör endast användas under utveckling
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
-// Extra debug-info
+// Importera nödvändiga moduler
+import { app, BrowserWindow, ipcMain, session } from 'electron';
+import * as path from 'path';
+
+// Debug-loggar
 console.log('======================= ELECTRON APP STARTAR =======================');
 console.log('Electron version:', process.versions.electron);
 console.log('Node version:', process.versions.node);
 console.log('Chrome version:', process.versions.chrome);
-console.log('V8 version:', process.versions.v8);
 console.log('OS:', process.platform, process.arch);
-console.log('Process PID:', process.pid);
 console.log('Webpack entry:', MAIN_WINDOW_WEBPACK_ENTRY);
 console.log('Preload entry:', MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY);
 
-// Konfigurering av persistent lagring
-const store = new Store({
-  name: 'screamm-ssh-config',
-  defaults: {
-    connections: [],
-    theme: 'classic-green',
-    language: 'sv',
-    terminalSettings: {
-      retroEffect: true,
-      cursorBlink: true,
-      fontSize: 14
-    }
-  }
-});
-
 // Globala variabler
 let mainWindow: BrowserWindow | null = null;
-const shellSessions = new Map();
-const sshConnections = new Map();
 
-// Monkey-patcha IPC för debug
-const originalHandle = ipcMain.handle;
-(ipcMain as any).handle = function(channel: string, listener: any) {
-  console.log(`⚡ REGISTRERAR IPC HANDLER: '${channel}'`);
-  return originalHandle.call(ipcMain, channel, listener);
-};
-
-/**
- * Skapa huvudfönstret
- */
-function createWindow() {
-  console.log('🪟 SKAPAR HUVUDFÖNSTER...');
+// Registrera IPC-hanterare
+const registerIPCHandlers = () => {
+  console.log('📡 Registrerar IPC-hanterare...');
   
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: false, // Måste vara false för att tillåta shell-hantering
-      preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY
-    },
-    backgroundColor: '#121212',
-    show: false,
-  });
-
-  console.log('🔄 LADDAR RENDERER URL:', MAIN_WINDOW_WEBPACK_ENTRY);
-  mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
-
-  // Visa fönstret när det är klart
-  mainWindow.once('ready-to-show', () => {
-    console.log('🎬 FÖNSTER REDO ATT VISAS');
-    mainWindow?.show();
-    
-    // Öppna DevTools i utvecklingsläge
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔧 ÖPPNAR DEVTOOLS (DEVELOPMENT MODE)');
-      mainWindow?.webContents.openDevTools();
-    }
-  });
-
-  mainWindow.on('closed', () => {
-    console.log('🚪 HUVUDFÖNSTER STÄNGT');
-    mainWindow = null;
-  });
-  
-  console.log('✅ HUVUDFÖNSTER SKAPAT');
-}
-
-/**
- * Registrera alla IPC handlers
- */
-function registerIPCHandlers() {
-  console.log('📡 REGISTRERAR IPC HANDLERS...');
-  
-  // Ping test
-  ipcMain.handle('ping', (event) => {
-    console.log('📍 PING ANROP MOTTAGET!');
+  // Ping-test
+  ipcMain.handle('ping', () => {
+    console.log('📍 Ping-anrop mottaget');
     return 'pong';
   });
   
-  // -------------------
-  // INSTÄLLNINGS-HANDLERS
-  // -------------------
-  
-  // Get theme
-  ipcMain.handle('get-theme', (event) => {
-    console.log('🎨 GET-THEME ANROP MOTTAGET');
-    const theme = store.get('theme', 'classic-green');
-    console.log(`  → Returnerar tema: ${theme}`);
-    return theme;
+  // Test-kanal
+  ipcMain.handle('test-channel', () => {
+    console.log('🧪 Test-kanal anropad');
+    return { success: true, message: 'Kommunikation fungerar!' };
   });
   
-  // Save theme
-  ipcMain.handle('save-theme', (event, theme) => {
-    console.log(`🎨 SAVE-THEME ANROP MOTTAGET: ${theme}`);
-    store.set('theme', theme);
-    return { success: true };
-  });
-  
-  // Get language
-  ipcMain.handle('get-language', (event) => {
-    console.log('🌐 GET-LANGUAGE ANROP MOTTAGET');
-    const language = store.get('language', 'sv');
-    console.log(`  → Returnerar språk: ${language}`);
-    return language;
-  });
-  
-  // Save language
-  ipcMain.handle('save-language', (event, language) => {
-    console.log(`🌐 SAVE-LANGUAGE ANROP MOTTAGET: ${language}`);
-    store.set('language', language);
-    return { success: true };
-  });
-  
-  // Get terminal settings
-  ipcMain.handle('get-terminal-settings', (event) => {
-    console.log('⌨️ GET-TERMINAL-SETTINGS ANROP MOTTAGET');
-    const defaultSettings = {
-      retroEffect: true,
-      cursorBlink: true,
-      fontSize: 14
-    };
-    const settings = store.get('terminalSettings', defaultSettings);
-    console.log(`  → Returnerar inställningar: ${JSON.stringify(settings)}`);
-    return settings;
-  });
-  
-  // Save terminal settings
-  ipcMain.handle('save-terminal-settings', (event, settings) => {
-    console.log(`⌨️ SAVE-TERMINAL-SETTINGS ANROP MOTTAGET: ${JSON.stringify(settings)}`);
-    store.set('terminalSettings', settings);
-    return { success: true };
-  });
-  
-  // -------------------
-  // SSH-HANTERARE
-  // -------------------
-  
-  // SSH Connect
-  ipcMain.handle('ssh:connect', async (event, args) => {
-    try {
-      console.log('🔗 SSH-CONNECT ANROP MOTTAGET');
-      const { config } = args;
-      
-      if (!config || !config.host || !config.port || !config.username) {
-        return { 
-          success: false, 
-          error: 'Ofullständig SSH-konfiguration. Host, port och username krävs.' 
-        };
-      }
-      
-      console.log(`  → Ansluter till SSH-server: ${config.host}:${config.port} som ${config.username}`);
-      
-      // Generera ett unikt ID för anslutningen
-      const connectionId = `ssh-${Date.now()}`;
-      
-      // Skapa ssh-klienten
-      const sshClient = new SSH2.Client();
-      
-      // Registrera anslutningen
-      sshConnections.set(connectionId, { client: sshClient, connected: false });
-      
-      // Konfigurera SSH-anslutningen
-      const sshConfig: SSH2.ConnectConfig = {
-        host: config.host,
-        port: config.port,
-        username: config.username,
-        // Hantera antingen lösenord eller privat nyckel
-        ...(config.password ? { password: config.password } : {}),
-        ...(config.privateKey ? { privateKey: config.privateKey } : {})
-      };
-      
-      // Skapa ett promise för anslutningen
-      const connectionPromise = new Promise<{ success: boolean, connectionId?: string, error?: string }>((resolve, reject) => {
-        // Registrera händelsehanterare
-        sshClient.on('ready', () => {
-          console.log(`✅ SSH-anslutning klar: ${connectionId}`);
-          sshConnections.set(connectionId, { 
-            client: sshClient, 
-            connected: true,
-            config: config 
-          });
-          resolve({ success: true, connectionId });
-        });
-        
-        sshClient.on('error', (err) => {
-          console.error(`❌ SSH-anslutningsfel: ${err.message}`);
-          sshConnections.delete(connectionId);
-          resolve({ success: false, error: err.message });
-        });
-        
-        // Försök ansluta till SSH-servern
-        sshClient.connect(sshConfig);
-      });
-      
-      // Vänta på resultatet och returnera
-      return await connectionPromise;
-    } catch (err: any) {
-      console.error('❌ SSH-anslutningsfel:', err);
-      return { success: false, error: err.message };
-    }
-  });
-  
-  // SSH Execute
-  ipcMain.handle('ssh:execute', async (event, args) => {
-    try {
-      const { connectionId, command } = args;
-      
-      console.log(`🔄 SSH-EXECUTE [${connectionId.substring(0, 8)}]: ${command}`);
-      
-      const connection = sshConnections.get(connectionId);
-      
-      if (!connection || !connection.connected) {
-        console.log(`❌ SSH-anslutning hittades inte: ${connectionId}`);
-        return { success: false, error: 'SSH-anslutning hittades inte eller är stängd' };
-      }
-      
-      // Skapa ett nytt SSH-kommando
-      const execPromise = new Promise<{
-        success: boolean;
-        code?: number;
-        stdout?: string;
-        stderr?: string;
-        error?: string;
-      }>((resolve, reject) => {
-        connection.client.exec(command, (err, stream) => {
-          if (err) {
-            console.error(`❌ SSH-exekveringsfel: ${err.message}`);
-            return resolve({ success: false, error: err.message });
-          }
-          
-          let stdout = '';
-          let stderr = '';
-          
-          stream.on('data', (data: Buffer) => {
-            stdout += data.toString('utf8');
-          });
-          
-          stream.stderr.on('data', (data: Buffer) => {
-            stderr += data.toString('utf8');
-          });
-          
-          stream.on('close', (code: number) => {
-            console.log(`✅ SSH-kommando avslutades med kod: ${code}`);
-            resolve({
-              success: true,
-              code,
-              stdout,
-              stderr
-            });
-          });
-        });
-      });
-      
-      return await execPromise;
-    } catch (err: any) {
-      console.error('❌ SSH-exekveringsfel:', err);
-      return { success: false, error: err.message };
-    }
-  });
-  
-  // SSH Disconnect
-  ipcMain.handle('ssh:disconnect', async (event, args) => {
-    try {
-      const { connectionId } = args;
-      
-      console.log(`🔌 SSH-DISCONNECT [${connectionId.substring(0, 8)}]`);
-      
-      const connection = sshConnections.get(connectionId);
-      
-      if (!connection) {
-        console.log(`❌ SSH-anslutning hittades inte: ${connectionId}`);
-        return { success: false, error: 'SSH-anslutning hittades inte' };
-      }
-      
-      // Stäng anslutningen
-      connection.client.end();
-      sshConnections.delete(connectionId);
-      
-      console.log(`✅ SSH-anslutning stängd: ${connectionId}`);
-      return { success: true };
-    } catch (err: any) {
-      console.error('❌ SSH-frånkopplingsfel:', err);
-      return { success: false, error: err.message };
-    }
-  });
-  
-  // -------------------
-  // SHELL-HANDLERS
-  // -------------------
-  
-  // Shell-create
-  ipcMain.handle('shell-create', (event) => {
-    try {
-      console.log('🐚 SHELL-CREATE ANROP MOTTAGET!');
-      
-      // Generera ett unikt ID
-      const sessionId = `shell-${Date.now()}`;
-      
-      // Hitta rätt shell för operativsystemet
-      const shell = process.platform === 'win32' 
-        ? process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe'
-        : process.env.SHELL || '/bin/bash';
-      
-      console.log(`🚀 Startar shell: ${shell}, session: ${sessionId}`);
-      
-      // Starta shell-processen
-      const shellProcess = spawn(shell, [], {
-        env: process.env,
-        cwd: os.homedir(),
-        shell: true
-      });
-      
-      console.log(`✅ Shell-process skapad med PID: ${shellProcess.pid}`);
-      shellSessions.set(sessionId, shellProcess);
-      
-      // Hantera output från shell
-      shellProcess.stdout.on('data', (data) => {
-        const output = data.toString();
-        console.log(`📤 Shell stdout [${sessionId.substring(0, 8)}]: ${output.substring(0, 40)}${output.length > 40 ? '...' : ''}`);
-        if (mainWindow?.webContents) {
-          mainWindow.webContents.send('shell-output', { id: sessionId, output });
-        } else {
-          console.error('❌ mainWindow eller webContents är null!');
-        }
-      });
-      
-      shellProcess.stderr.on('data', (data) => {
-        const output = data.toString();
-        console.log(`⚠️ Shell stderr [${sessionId.substring(0, 8)}]: ${output.substring(0, 40)}${output.length > 40 ? '...' : ''}`);
-        if (mainWindow?.webContents) {
-          mainWindow.webContents.send('shell-output', { id: sessionId, error: output });
-        } else {
-          console.error('❌ mainWindow eller webContents är null!');
-        }
-      });
-      
-      // Hantera fel och avslut
-      shellProcess.on('error', (err: Error) => {
-        console.log(`❌ Shell error [${sessionId.substring(0, 8)}]: ${err.message}`);
-        if (mainWindow?.webContents) {
-          mainWindow.webContents.send('shell-error', { id: sessionId, error: err.message });
-        }
-      });
-      
-      shellProcess.on('exit', (code) => {
-        console.log(`👋 Shell exited [${sessionId.substring(0, 8)}] with code: ${code}`);
-        shellSessions.delete(sessionId);
-        if (mainWindow?.webContents) {
-          mainWindow.webContents.send('shell-exit', { id: sessionId, code });
-        }
-      });
-      
-      return { success: true, id: sessionId };
-    } catch (err: any) {
-      console.error('❌❌❌ Error starting shell:', err);
-      return { success: false, error: err.message };
-    }
-  });
-  
-  // Shell-execute
-  ipcMain.handle('shell-execute', (event, args) => {
-    try {
-      const { id, command } = args;
-      console.log(`🔄 SHELL-EXECUTE [${id.substring(0, 8)}]: ${command}`);
-      
-      const process = shellSessions.get(id);
-      
-      if (!process) {
-        console.log(`❌ Shell session not found: ${id}`);
-        return { success: false, error: 'Shell session not found' };
-      }
-      
-      console.log(`✅ Executing command in shell [${id.substring(0, 8)}]`);
-      process.stdin.write(command + '\n');
-      
-      return { success: true };
-    } catch (err: any) {
-      console.error('❌❌❌ Error executing shell command:', err);
-      return { success: false, error: err.message };
-    }
-  });
-  
-  // Shell-terminate
-  ipcMain.handle('shell-terminate', (event, args) => {
-    try {
-      const { id } = args;
-      console.log(`🛑 SHELL-TERMINATE [${id.substring(0, 8)}]`);
-      
-      const process = shellSessions.get(id);
-      
-      if (!process) {
-        console.log(`❌ Shell session not found: ${id}`);
-        return { success: false, error: 'Shell session not found' };
-      }
-      
-      process.kill();
-      shellSessions.delete(id);
-      console.log(`✅ Shell terminated [${id.substring(0, 8)}]`);
-      
-      return { success: true };
-    } catch (err: any) {
-      console.error('❌❌❌ Error terminating shell:', err);
-      return { success: false, error: err.message };
-    }
-  });
-  
-  // -------------------
-  // SAVED CONNECTIONS HANDLERS (BASIC)
-  // -------------------
-  
-  // Get saved connections
-  ipcMain.handle('get-saved-connections', (event) => {
-    console.log('📁 GET-SAVED-CONNECTIONS ANROP MOTTAGET');
-    const connections = store.get('connections', []);
-    return connections;
-  });
-  
-  // Save connection
-  ipcMain.handle('save-connection', (event, connection) => {
-    console.log(`📁 SAVE-CONNECTION ANROP MOTTAGET`);
-    try {
-      const connections = store.get('connections', []) as any[];
-      
-      // Om connection har ett id, uppdatera befintlig anslutning
-      if (connection.id) {
-        const index = connections.findIndex(c => c.id === connection.id);
-        if (index >= 0) {
-          connections[index] = connection;
-        } else {
-          connections.push(connection);
-        }
-      } else {
-        // Lägg till nytt id för ny anslutning
-        connection.id = `conn-${Date.now()}`;
-        connections.push(connection);
-      }
-      
-      store.set('connections', connections);
-      return { success: true, connections };
-    } catch (err: any) {
-      console.error('Error saving connection:', err);
-      return { success: false, error: err.message };
-    }
-  });
-  
-  // Delete connection
-  ipcMain.handle('delete-connection', (event, id) => {
-    console.log(`📁 DELETE-CONNECTION ANROP MOTTAGET: ${id}`);
-    try {
-      const connections = store.get('connections', []) as any[];
-      const filteredConnections = connections.filter(c => c.id !== id);
-      store.set('connections', filteredConnections);
-      return { success: true, connections: filteredConnections };
-    } catch (err: any) {
-      console.error('Error deleting connection:', err);
-      return { success: false, error: err.message };
-    }
-  });
-  
-  console.log('✅ ALLA IPC HANDLERS REGISTRERADE!');
-}
+  console.log('✅ IPC-hanterare registrerade');
+};
 
-// Appens startpunkt
-app.whenReady().then(() => {
-  console.log('🚀 APP ÄR REDO!');
+// Skapa huvudfönster
+const createWindow = () => {
+  console.log('🪟 Skapar huvudfönster...');
   
-  // Registrera IPC-handlers FÖRST
+  if (MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY === undefined) {
+    console.error('❌ MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY är undefined');
+    app.quit();
+    return;
+  }
+  
+  if (MAIN_WINDOW_WEBPACK_ENTRY === undefined) {
+    console.error('❌ MAIN_WINDOW_WEBPACK_ENTRY är undefined');
+    app.quit();
+    return;
+  }
+  
+  // Kontrollera att preload-filen finns
+  console.log('Absolut sökväg till preload-skript:', MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY);
+  
+  // Skapa BrowserWindow med säkra inställningar
+  mainWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    title: 'ScreammSSH',
+    show: false,
+    backgroundColor: '#252525',
+    webPreferences: {
+      preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      nodeIntegrationInWorker: false,
+      nodeIntegrationInSubFrames: false,
+      javascript: true,
+      images: true,
+      devTools: true,
+      spellcheck: false,
+      disableDialogs: true,
+      navigateOnDragDrop: false,
+      autoplayPolicy: 'user-gesture-required'
+    }
+  });
+  
+  // Visningskonfiguration
+  mainWindow.once('ready-to-show', () => {
+    console.log('🎬 Fönster redo att visas');
+    if (mainWindow) {
+      mainWindow.show();
+      console.log('Laddning slutförd! Visar fönster...');
+      
+      // Testa kommunikation i utvecklingsläge
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Testar kommunikation från main-processen');
+        try {
+          mainWindow.webContents.executeJavaScript(`
+            console.warn('Testar kommunikation från main-processen');
+            if (window.electronAPI) {
+              console.warn('electronAPI hittad i fönstret!');
+            } else {
+              console.error('electronAPI saknas i fönstret!');
+            }
+          `).catch(e => console.error('Testskript fel:', e));
+        } catch (error) {
+          console.error('Fel vid exekvering av JavaScript i renderer:', error);
+        }
+      }
+    }
+  });
+
+  // Ladda appens UI från webpack-entry
+  console.log('🔄 Laddar URL:', MAIN_WINDOW_WEBPACK_ENTRY);
+  mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY).then(() => {
+    console.log('✅ URL laddad');
+  }).catch(error => {
+    console.error('❌ URL laddningsfel:', error);
+  });
+  
+  // Öppna DevTools i utvecklingsläge
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔧 Öppnar DevTools (utvecklingsläge)');
+    mainWindow.webContents.openDevTools();
+  }
+  
+  // Loggning av händelser i fönstret
+  mainWindow.webContents.on('did-start-loading', () => console.log('🔄 Laddning startar...'));
+  mainWindow.webContents.on('did-finish-load', () => console.log('✅ Laddning slutförd'));
+  mainWindow.webContents.on('did-fail-load', (e, code, desc) => 
+    console.error(`❌ Laddningsfel: ${code} ${desc}`));
+  
+  // Städa upp vid stängning
+  mainWindow.on('closed', () => {
+    console.log('🚪 Fönster stängt');
+    mainWindow = null;
+  });
+  
+  console.log('✅ Huvudfönster skapat');
+};
+
+// Appens livscykel
+app.whenReady().then(() => {
+  console.log('🚀 App redo!');
+  
+  // Sätt striktare CSP direkt via session API
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-eval'",  // unsafe-eval behövs för utveckling
+          "style-src 'self' 'unsafe-inline'",
+          "font-src 'self' data:",
+          "img-src 'self' data:",
+          "connect-src 'self'"
+        ].join('; '),
+        'X-Content-Type-Options': ['nosniff'],
+        'X-Frame-Options': ['DENY'],
+        'X-XSS-Protection': ['1; mode=block']
+      }
+    });
+  });
+  
+  // Neka alla behörighetsförfrågningar för extra säkerhet
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    console.log(`⚠️ Behörighetsförfrågan nekad: ${permission}`);
+    callback(false);
+  });
+  
+  // Övervaka när nya webContents skapas och säkerställ säkra inställningar
+  app.on('web-contents-created', (event, contents) => {
+    // Förhindra navigering till osäkra platser
+    contents.on('will-navigate', (event, navigationUrl) => {
+      const parsedUrl = new URL(navigationUrl);
+      // Tillåt bara lokala URLs eller specifika domäner
+      if (parsedUrl.origin !== 'http://localhost:3030' &&
+          parsedUrl.protocol !== 'file:') {
+        console.warn(`⚠️ Blockerad navigering till: ${navigationUrl}`);
+        event.preventDefault();
+      }
+    });
+    
+    // Säkerställ att webviews inte kan skapas med osäkra inställningar
+    contents.on('will-attach-webview', (event, webPreferences, params) => {
+      // Se till att webPreferences inte överskriver säkerhetsinställningar
+      webPreferences.nodeIntegration = false;
+      webPreferences.contextIsolation = true;
+      webPreferences.webSecurity = true;
+      webPreferences.allowRunningInsecureContent = false;
+      
+      // Blockera osäkra källor
+      if (!params.src.startsWith('https:') && 
+          !params.src.startsWith('http://localhost') &&
+          !params.src.startsWith('file:')) {
+        event.preventDefault();
+      }
+    });
+  });
+  
+  // Registrera IPC-hanterare
   registerIPCHandlers();
   
-  // Skapa fönster EFTER hanterare är registrerade
+  // Skapa appfönstret
   createWindow();
-}).catch(err => {
-  console.error('💥 FEL VID APPSTART:', err);
+  
+  // Loggning av preload-skript
+  if (mainWindow) {
+    const preloadPath = MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY;
+    try {
+      const fs = require('fs');
+      const exists = fs.existsSync(preloadPath);
+      const stats = exists ? fs.statSync(preloadPath) : null;
+      const size = stats ? stats.size : -1;
+      const contents = exists ? fs.readFileSync(preloadPath, 'utf8') : '';
+      
+      console.log('Preload-skript existerar:', exists);
+      console.log('Preload-skript storlek:', size, 'tecken');
+      console.log('Preload-skript första 100 tecken:', contents.substring(0, 100));
+    } catch (error) {
+      console.error('❌ Fel vid kontroll av preload-skript:', error);
+    }
+  }
+}).catch(error => {
+  console.error('💥 Fel vid appstart:', error);
+  app.quit();
 });
 
-// Hantera app livscykel
+// Hantera stängning av alla fönster
 app.on('window-all-closed', () => {
-  console.log('🏁 ALLA FÖNSTER STÄNGDA');
+  console.log('🏁 Alla fönster stängda');
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// På macOS, återskapa fönstret när användaren klickar på dockikonen
+// Skapa nytt fönster om inget finns (MacOS-beteende)
 app.on('activate', () => {
-  console.log('♻️ APP ÅTERAKTIVERAD');
-  if (mainWindow === null && app.isReady()) {
+  console.log('♻️ App återaktiverad');
+  if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
 
-// Stäng alla anslutningar vid avslut
+// Städa upp innan avslut
 app.on('will-quit', () => {
-  console.log(`🧹 Städar upp anslutningar...`);
-  
-  // Stäng alla shell-sessioner
-  console.log(`🧹 Städar upp ${shellSessions.size} shell-sessioner...`);
-  for (const [id, process] of shellSessions.entries()) {
-    try {
-      process.kill();
-      console.log(`✅ Avslutade shell ${id.substring(0, 8)}`);
-    } catch (err) {
-      console.error(`❌ Misslyckades avsluta shell ${id.substring(0, 8)}:`, err);
-    }
-  }
-  shellSessions.clear();
-  
-  // Stäng alla SSH-anslutningar
-  console.log(`🧹 Städar upp ${sshConnections.size} SSH-anslutningar...`);
-  for (const [id, connection] of sshConnections.entries()) {
-    try {
-      if (connection.client) {
-        connection.client.end();
-        console.log(`✅ Avslutade SSH-anslutning ${id.substring(0, 8)}`);
-      }
-    } catch (err) {
-      console.error(`❌ Misslyckades avsluta SSH-anslutning ${id.substring(0, 8)}:`, err);
-    }
-  }
-  sshConnections.clear();
-  
-  console.log('👋 APP AVSLUTAS');
+  console.log('👋 App avslutar...');
 }); 

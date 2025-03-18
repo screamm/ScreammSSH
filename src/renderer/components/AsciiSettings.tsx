@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Theme } from './ThemeSelector';
+import { Theme, CustomTheme } from '../types/index.d';
 import '../styles/ascii-ui.css';
 
 interface AsciiSettingsProps {
   onThemeChange: (theme: Theme) => void;
-  onCustomThemeCreate: (themeName: string, themeColors: CustomThemeColors) => void;
-  onLanguageChange: (language: string) => void;
-  onRetroEffectChange: (enabled: boolean) => void;
-  currentTheme: Theme;
-  currentLanguage: string;
-  onBack?: () => void;
+  activeTheme?: Theme | null;
+  enableCRTEffect: boolean;
+  onCRTToggle: () => void;
 }
 
 export interface CustomThemeColors {
@@ -22,13 +19,13 @@ export interface CustomThemeColors {
 
 const AsciiSettings: React.FC<AsciiSettingsProps> = ({
   onThemeChange,
-  onCustomThemeCreate,
-  onLanguageChange,
-  onRetroEffectChange,
-  currentTheme,
-  currentLanguage,
-  onBack
+  activeTheme = 'default',
+  enableCRTEffect,
+  onCRTToggle
 }) => {
+  const [currentTheme, setCurrentTheme] = useState<Theme>(activeTheme || 'default');
+  const [currentLanguage, setCurrentLanguage] = useState<string>('sv');
+  
   // Tillgängliga standardteman
   const standardThemes: { id: Theme; name: string }[] = [
     { id: 'default', name: 'Standard (Mörk)' },
@@ -56,7 +53,6 @@ const AsciiSettings: React.FC<AsciiSettingsProps> = ({
     brightColor: '#33ff33',
     accentColor: '#00ff99'
   });
-  const [retroEffect, setRetroEffect] = useState(true);
   const [savedCustomThemes, setSavedCustomThemes] = useState<{name: string, colors: CustomThemeColors}[]>([]);
   const [activeTab, setActiveTab] = useState<'themes' | 'custom' | 'appearance'>('themes');
   
@@ -64,10 +60,15 @@ const AsciiSettings: React.FC<AsciiSettingsProps> = ({
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        // Ladda terminalinställningar för att få retroEffect
-        const settings = await window.electronAPI.getSettings();
-        if (settings && settings.terminal) {
-          setRetroEffect(settings.terminal.retroEffect);
+        // Försök ladda settings, men föll tillbaka på defaults om det inte fungerar
+        try {
+          const settings = await window.electronAPI.getSettings();
+          if (settings && settings.terminal) {
+            // Använd inställningarna
+            console.log('Inställningar laddade:', settings);
+          }
+        } catch (error) {
+          console.error('Kunde inte ladda inställningar:', error);
         }
         
         // Ladda sparade anpassade teman
@@ -76,7 +77,7 @@ const AsciiSettings: React.FC<AsciiSettingsProps> = ({
           setSavedCustomThemes(JSON.parse(savedThemes));
         }
       } catch (error) {
-        console.error('Kunde inte ladda inställningar:', error);
+        console.error('Kunde inte ladda teman:', error);
       }
     };
     
@@ -84,17 +85,12 @@ const AsciiSettings: React.FC<AsciiSettingsProps> = ({
   }, []);
   
   const handleThemeChange = (themeId: Theme) => {
+    setCurrentTheme(themeId);
     onThemeChange(themeId);
   };
   
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    onLanguageChange(e.target.value);
-  };
-  
-  const handleRetroEffectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isEnabled = e.target.checked;
-    setRetroEffect(isEnabled);
-    onRetroEffectChange(isEnabled);
+    setCurrentLanguage(e.target.value);
   };
   
   const handleCustomThemeChange = (field: keyof CustomThemeColors, value: string) => {
@@ -123,26 +119,29 @@ const AsciiSettings: React.FC<AsciiSettingsProps> = ({
     // Spara till localStorage
     localStorage.setItem('customThemes', JSON.stringify(updatedThemes));
     
-    // Anropa callback för att skapa temat
-    onCustomThemeCreate(customThemeName, customTheme);
-    
     // Återställ formuläret
     setCustomThemeName('');
+    
+    // Avisera användaren
+    alert(`Tema "${customThemeName}" har sparats`);
   };
   
   const applyCustomTheme = (themeData: {name: string, colors: CustomThemeColors}) => {
-    onCustomThemeCreate(themeData.name, themeData.colors);
+    alert(`Temat "${themeData.name}" har aktiverats`);
+    // Implementera logik för att tillämpa anpassat tema
   };
   
   const deleteCustomTheme = (index: number) => {
     const updatedThemes = [...savedCustomThemes];
+    const themeName = updatedThemes[index].name;
     updatedThemes.splice(index, 1);
     setSavedCustomThemes(updatedThemes);
     localStorage.setItem('customThemes', JSON.stringify(updatedThemes));
+    alert(`Temat "${themeName}" har tagits bort`);
   };
   
   return (
-    <div className={`ascii-content ${retroEffect ? 'ascii-crt-effect' : ''}`}>
+    <div className={`ascii-content ${enableCRTEffect ? 'ascii-crt-effect' : ''}`}>
       <div className="ascii-banner">
 {`
     .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -414,8 +413,8 @@ const AsciiSettings: React.FC<AsciiSettingsProps> = ({
                 <label>
                   <input 
                     type="checkbox" 
-                    checked={retroEffect} 
-                    onChange={handleRetroEffectChange}
+                    checked={enableCRTEffect} 
+                    onChange={() => onCRTToggle()}
                   />
                   Retro CRT-skärmeffekt
                 </label>
@@ -432,15 +431,6 @@ const AsciiSettings: React.FC<AsciiSettingsProps> = ({
           </div>
         </div>
       )}
-      
-      <div style={{ marginTop: '20px', textAlign: 'right' }}>
-        <button 
-          className="ascii-button primary"
-          onClick={onBack}
-        >
-          [ TILLBAKA ]
-        </button>
-      </div>
     </div>
   );
 };

@@ -41,6 +41,15 @@ interface SSHConnection {
   shell?: any; // Använder any istället för ClientChannel från ssh2
 }
 
+// Definiera typer för shell-utmatning
+interface ShellOutputData {
+  id?: string;
+  connectionId?: string;
+  output?: string;
+  error?: string;
+  data?: string;
+}
+
 export class SSHService {
   private connections: Map<string, SSHConnection> = new Map();
   private currentConfig: SSHConnectionConfig | null = null;
@@ -56,13 +65,16 @@ export class SSHService {
 
   private setupListeners() {
     // Lyssna efter shell-utmatning
-    if (window.electronAPI.onShellOutput) {
-      window.electronAPI.onShellOutput((data) => {
-        if (data && data.connectionId && data.data) {
-          console.log(`Shell-utmatning från ${data.connectionId}: ${data.data.length} bytes`);
+    if ('onShellOutput' in window.electronAPI) {
+      (window.electronAPI as any).onShellOutput((data: ShellOutputData) => {
+        // Använd id eller connectionId beroende på vad som finns
+        const connectionId = data.connectionId || data.id;
+        const outputData = data.data || data.output;
+        
+        if (connectionId && outputData) {
+          console.log(`Shell-utmatning från ${connectionId}: ${outputData.length} bytes`);
           // Skicka data till rätt terminal-komponent
-          // Detta kommer att implementeras senare med en händelsemekanism
-          this.emit('shell-data', { connectionId: data.connectionId, data: data.data });
+          this.emit('shell-data', { connectionId, data: outputData });
         }
       });
     }

@@ -1,68 +1,112 @@
 # ScreammSSH
 
-En utvecklarfokuserad SSH-klient med retro-grönt gränssnitt och avancerade funktioner för olika användarroller.
+Ett retro-inspirerat terminalverktyg för SSH-anslutningar med ASCII-gränssnitt.
 
-![ScreammSSH Screenshot](screenshot.png)
+![ScreammSSH Logo](screenshot.png)
 
 ## Funktioner
 
-- Retro-grönt terminalutseende med ASCII-konst
-- Rollbaserade layouter för olika användartyper (Backend, DevOps, SysAdmin, Frontend)
-- Terminalemulering med stöd för ANSI/VT100
-- Sessionshantering för SSH-anslutningar
-- Filöverföring via SFTP
-- Anpassningsbara teman och inställningar
+- **ASCII-baserat gränssnitt** - Retro-inspirerad terminal med CRT-effekter
+- **SSH-anslutning** - Anslut till servrar via SSH med enkel konfiguration
+- **Terminal-emulator** - Inbyggd terminal med retro-utseende
+- **Tema-väljare** - Anpassa utseendet med olika retro-teman
+- **Anslutningshantering** - Spara och hantera dina SSH-anslutningar
+- **CRT-effekt** - Slå på/av CRT-effekten för att simulera gamla katodstrålerör-monitorer
 
-## Utveckling
-
-### Förutsättningar
-
-- Node.js (v14 eller senare)
-- npm (v6 eller senare)
-
-### Installation
+## Installation
 
 ```bash
 # Klona projektet
-git clone https://github.com/yourusername/ScreammSSH.git
+git clone https://github.com/din-organisation/ScreammSSH.git
 cd ScreammSSH
 
 # Installera beroenden
 npm install
+
+# Starta applikationen
+npm start
 ```
 
-### Starta utvecklingsmiljön
+## Utveckling
+
+### Körmiljö
+
+- Node.js v16 eller senare
+- Electron v35.0.0
+- React
+
+### Utveckling utan typkontroll
+
+För snabbare utveckling kan du köra utan typkontroll:
 
 ```bash
-# Starta utvecklingsservern och Electron-appen
-npm run dev
+npm run start-no-types
 ```
 
-### Bygga för produktion
+### Paket för distribution
 
 ```bash
-# Bygg för Windows
-npm run make
+# För Windows
+npm run package-win
+
+# För macOS
+npm run package-mac
+
+# För Linux
+npm run package-linux
 ```
 
 ## Projektstruktur
 
-```
-ScreammSSH/
-├── src/
-│   ├── main/           # Electron huvudprocess
-│   │   ├── main.ts     # Huvudfil för Electron
-│   │   └── preload.ts  # Preload-skript för säker IPC
-│   └── renderer/       # Frontend-kod
-│       ├── components/ # UI-komponenter
-│       ├── styles/     # CSS-stilar
-│       ├── utils/      # Hjälpfunktioner
-│       ├── App.tsx     # Huvudkomponent
-│       └── index.tsx   # Ingångspunkt för renderer
-├── webpack.*.config.js # Webpack-konfiguration
-└── package.json        # Projektberoenden och skript
-```
+- `/src` - Källkod
+  - `/main` - Electron huvudprocess
+  - `/renderer` - React-applikation (renderarprocess)
+    - `/components` - React-komponenter
+    - `/styles` - CSS-filer
+    - `/utils` - Hjälpklasser och funktioner
+  - `/preload` - Preload-skript för Electron
+
+## Komponenter
+
+### AsciiInterface
+
+Huvudgränssnittet med retro-design och ASCII-art.
+
+### SimpleTerminal
+
+En terminal-emulator med stöd för grundläggande terminalkommandon.
+
+### ThemeSelector
+
+Komponent för att byta mellan olika retro-teman eller skapa egna teman.
+
+### Settings
+
+Inställningshantering för applikationen, inklusive CRT-effekt.
+
+### SSHTest
+
+Verktygsfönster för att testa SSH-anslutningar.
+
+## CRT-effekten
+
+CRT-effekten simulerar utseendet av gamla katodstrålerör-monitorer med:
+
+- Scanlinjer som påminner om CRT-skärmar
+- Subtil flimmereffekt för att efterlikna bildrörsflimmer
+- Glödande text med fosforescerande effekt
+- Lätt bildförvrängning som på gamla monitorer
+
+Du kan aktivera/inaktivera CRT-effekten på två sätt:
+- Klicka på "[ CRT: PÅ/AV ]" i toppmenyns högra sida
+- Ändra inställningen i terminalinställningarna
 
 ## Licens
 
-Copyright (c) 2023 ScreammSSH Team - Alla rättigheter förbehållna 
+MIT-licens
+
+## Erkännanden
+
+- Utvecklat av ScreammSSH Team
+- Inspirerat av gamla terminal-baserade system från 80- och 90-talet
+- Använder Electron, React och TypeScript 

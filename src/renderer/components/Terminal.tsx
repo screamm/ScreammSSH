@@ -1,204 +1,320 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { terminalService } from '../services/TerminalService';
-import { SSHConnectionInfo } from '../services/SSHService';
-import { connectionManager } from '../services/ConnectionManager';
+import { Terminal as XTerm } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+import { WebLinksAddon } from 'xterm-addon-web-links';
+import { SearchAddon } from 'xterm-addon-search';
 import 'xterm/css/xterm.css';
+import { SSHConnectionInfo, Theme } from '../types/index.d';
+import { v4 as uuidv4 } from 'uuid';
+
+// Deklarera interface för terminalEmitter
+declare global {
+  interface Window { 
+    terminalEmitter: {
+      onData: (sessionId: string, callback: (data: string) => void) => () => void;
+      onExit: (sessionId: string, callback: (code: number, signal: string) => void) => () => void;
+      onError: (sessionId: string, callback: (error: string) => void) => () => void;
+      write: (sessionId: string, data: string) => void;
+    };
+  }
+}
 
 interface TerminalProps {
   connection?: SSHConnectionInfo;
   autoConnect?: boolean;
 }
 
-const Terminal: React.FC<TerminalProps> = ({ connection, autoConnect = false }) => {
+const Terminal: React.FC<TerminalProps> = ({ 
+  connection,
+  autoConnect = false
+}) => {
   const terminalRef = useRef<HTMLDivElement>(null);
+  const terminal = useRef<XTerm>();
+  const fitAddon = useRef<FitAddon>(new FitAddon());
+  const searchAddon = useRef<SearchAddon>(new SearchAddon());
   const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const connectionIdRef = useRef<string | null>(null);
-
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [sessionId, setSessionId] = useState('');
+  
+  // Hantera temaupdateringar
   useEffect(() => {
-    // När komponenten monteras, lyssna på förändringar i storlek
-    const handleResize = () => {
-      if (connectionIdRef.current) {
-        terminalService.fitTerminal(connectionIdRef.current);
+    // Lyssna på temändringar
+    const handleThemeChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail) {
+        const newTheme = customEvent.detail;
+        
+        // Skapa xterm-tema
+        if (terminal.current) {
+          terminal.current.options.theme = {
+            background: newTheme.backgroundColor || 'var(--theme-bg-color, #000)',
+            foreground: newTheme.textColor || 'var(--theme-text-color, #0f0)',
+            cursor: newTheme.textColor || 'var(--theme-text-color, #0f0)',
+            selectionBackground: newTheme.selection || 'var(--theme-selection-color, #333)',
+          };
+        }
       }
     };
-
+    
+    window.addEventListener('theme-changed', handleThemeChange);
+    
+    return () => {
+      window.removeEventListener('theme-changed', handleThemeChange);
+    };
+  }, []);
+  
+  // Hantera storleksändringar
+  useEffect(() => {
+    const handleResize = () => {
+      if (fitAddon.current && terminal.current) {
+        fitAddon.current.fit();
+        
+        // Meddela servern om storleksändringen
+        if (isConnected && connection) {
+          const { cols, rows } = terminal.current;
+          window.electronAPI.resizeTerminal(connection.id, cols, rows);
+        }
+      }
+    };
+    
     window.addEventListener('resize', handleResize);
-
-    // Städa upp när komponenten avmonteras
+    
     return () => {
       window.removeEventListener('resize', handleResize);
+    };
+  }, [isConnected, connection]);
+  
+  // Anslut till SSH när komponenten laddas
+  useEffect(() => {
+    if (autoConnect && connection && !isConnected && !isConnecting) {
+      connect();
+    }
+  }, [autoConnect, connection, isConnected, isConnecting]);
+  
+  // Städa upp vid avmontering
+  useEffect(() => {
+    return () => {
+      disconnect();
       
-      if (connectionIdRef.current) {
-        // Rensa terminalen (men koppla inte från)
-        terminalService.destroyTerminal(connectionIdRef.current);
+      if (terminal.current) {
+        terminal.current.dispose();
       }
     };
   }, []);
-
+  
+  // Initiera terminalen
   useEffect(() => {
-    // När anslutningen ändras, återställ terminalen och anslut om autoConnect är true
-    resetTerminal();
+    if (!terminalRef.current || terminal.current) return;
     
-    if (connection && autoConnect) {
-      connectToSSH();
-    }
-  }, [connection, autoConnect]);
-
-  const resetTerminal = () => {
-    // Rensa eventuell befintlig terminal
-    if (connectionIdRef.current) {
-      terminalService.destroyTerminal(connectionIdRef.current);
-      connectionIdRef.current = null;
+    // Skapa en ny terminal
+    terminal.current = new XTerm({
+      cursorBlink: true,
+      fontSize: 14,
+      fontFamily: 'var(--theme-font-family, monospace)',
+      theme: {
+        background: 'var(--theme-bg-color, #000)',
+        foreground: 'var(--theme-text-color, #0f0)',
+        cursor: 'var(--theme-text-color, #0f0)',
+        selectionBackground: 'var(--theme-selection-color, #333)',
+      },
+      allowTransparency: true,
+    });
+    
+    // Lägg till tillägg
+    terminal.current.loadAddon(fitAddon.current);
+    terminal.current.loadAddon(new WebLinksAddon());
+    terminal.current.loadAddon(searchAddon.current);
+    
+    // Öppna terminalen
+    terminal.current.open(terminalRef.current);
+    
+    // Justera storleken
+    setTimeout(() => {
+      if (fitAddon.current) {
+        fitAddon.current.fit();
+      }
+    }, 100);
+    
+    // Välkomstmeddelande
+    terminal.current.writeln('\r\n\x1b[33mScreammSSH Terminal\x1b[0m\r\n');
+    
+    if (connection) {
+      terminal.current.writeln(`\r\nAnvändarnamn: \x1b[36m${connection.username}\x1b[0m`);
+      terminal.current.writeln(`Värd: \x1b[36m${connection.host}\x1b[0m`);
+      terminal.current.writeln(`Port: \x1b[36m${connection.port || 22}\x1b[0m\r\n`);
+    } else {
+      terminal.current.writeln('\r\nIngen SSH-anslutning konfigurerad. Använd ANSLUTNINGAR-menyn för att konfigurera en.\r\n');
     }
     
-    setIsConnected(false);
-    setIsLoading(false);
-    setError(null);
+  }, [connection]);
+  
+  // Anslut till SSH-servern
+  const connect = async () => {
+    if (!terminal.current || !connection || isConnected || isConnecting) return;
     
-    if (connection && terminalRef.current) {
-      // Initalisera en ny terminal för den valda anslutningen
-      connectionIdRef.current = connection.id;
-      terminalService.createTerminal(connection.id, terminalRef.current);
-      
-      // Visa välkomstmeddelande
-      terminalService.writeToTerminal(
-        connection.id,
-        `\r\n\x1b[1;34m=== ScreammSSH Terminal ===\x1b[0m\r\n` +
-        `\r\nAnslutning: \x1b[1;32m${connection.name}\x1b[0m\r\n` +
-        `Host: \x1b[1;33m${connection.username}@${connection.host}:${connection.port}\x1b[0m\r\n\r\n` +
-        `Klicka på "Anslut" för att upprätta en SSH-anslutning eller skriv kommando nedan.\r\n\r\n`
-      );
-    }
-  };
-
-  const connectToSSH = async () => {
-    if (!connection) {
-      setError('Ingen anslutning vald');
-      return;
-    }
+    setIsConnecting(true);
+    
+    // Skapa sessions-ID
+    const newSessionId = connection.id || uuidv4();
+    setSessionId(newSessionId);
+    
+    terminal.current.writeln(`\r\n\x1b[33mAnsluter till ${connection.host}...\x1b[0m\r\n`);
     
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Visa anslutningsmeddelande i terminalen
-      if (connectionIdRef.current) {
-        terminalService.writeToTerminal(
-          connectionIdRef.current,
-          `\r\n\x1b[33mAnsluter till ${connection.host}...\x1b[0m\r\n`
-        );
-      }
-      
       // Anslut med SSH
-      const connected = await connectionManager.connect(connection.id);
+      const connected = await window.electronAPI.connectSSH(connection);
       
       if (connected) {
         setIsConnected(true);
+        terminal.current.writeln(`\r\n\x1b[32mAnsluten till ${connection.host}\x1b[0m\r\n`);
         
-        // Öppna ett shell i den anslutna sessionen
-        const shellOpened = await connectionManager.openShell(connection.id);
+        // Öppna ett skal
+        await window.electronAPI.openSSHShell(newSessionId);
         
-        if (!shellOpened) {
-          throw new Error('Kunde inte öppna shell');
-        }
-        
-        // Justera terminalstorleken efter anslutning
-        if (connectionIdRef.current) {
-          terminalService.fitTerminal(connectionIdRef.current);
+        // Uppdatera terminalstorleken på servern
+        if (terminal.current) {
+          window.electronAPI.resizeTerminal(
+            connection.id,
+            terminal.current.cols,
+            terminal.current.rows
+          );
         }
       } else {
-        throw new Error('Anslutning misslyckades');
+        terminal.current.writeln(`\r\n\x1b[31mKunde inte ansluta till ${connection.host}\x1b[0m\r\n`);
       }
-    } catch (err) {
-      setError(err.message || 'Anslutning misslyckades');
-      
-      if (connectionIdRef.current) {
-        terminalService.writeToTerminal(
-          connectionIdRef.current,
-          `\r\n\x1b[31mFel: ${err.message || 'Anslutning misslyckades'}\x1b[0m\r\n`
-        );
-      }
+    } catch (error) {
+      terminal.current.writeln(`\r\n\x1b[31mAnslutningsfel: ${error}\x1b[0m\r\n`);
     } finally {
-      setIsLoading(false);
+      setIsConnecting(false);
     }
   };
-
-  const disconnectFromSSH = () => {
-    if (!connection) return;
+  
+  // Koppla från SSH-servern
+  const disconnect = async () => {
+    if (!isConnected || !connection) return;
     
-    if (connectionManager.isConnected(connection.id)) {
-      connectionManager.disconnect(connection.id);
+    try {
+      await window.electronAPI.disconnectSSH(connection.id);
       
-      if (connectionIdRef.current) {
-        terminalService.writeToTerminal(
-          connectionIdRef.current,
-          `\r\n\x1b[33mFrånkopplad från ${connection.host}\x1b[0m\r\n`
-        );
+      if (terminal.current) {
+        terminal.current.writeln(`\r\n\x1b[33mKopplad från ${connection.host}\x1b[0m\r\n`);
       }
-      
+    } catch (error) {
+      console.error('Frånkopplingsfel:', error);
+    } finally {
       setIsConnected(false);
     }
   };
-
-  const clearTerminal = () => {
-    if (connectionIdRef.current) {
-      terminalService.clearTerminal(connectionIdRef.current);
-    }
-  };
-
+  
+  // Lyssna på input från terminalen
+  useEffect(() => {
+    if (!terminal.current || !connection || !isConnected) return;
+    
+    terminal.current.onData((data) => {
+      if (isConnected) {
+        window.terminalEmitter.write(sessionId, data);
+      }
+    });
+    
+    // Lyssna på utdata från SSH-servern
+    const removeDataListener = window.terminalEmitter.onData(sessionId, (data) => {
+      if (terminal.current) {
+        terminal.current.write(data);
+      }
+    });
+    
+    // Lyssna på exit från SSH-servern
+    const removeExitListener = window.terminalEmitter.onExit(sessionId, (exitCode, signal) => {
+      if (terminal.current) {
+        terminal.current.writeln(`\r\n\x1b[33mAnslutningen avslutades: ${signal || `Exitkod ${exitCode}`}\x1b[0m\r\n`);
+      }
+      setIsConnected(false);
+    });
+    
+    // Lyssna på fel från SSH-servern
+    const removeErrorListener = window.terminalEmitter.onError(sessionId, (error) => {
+      if (terminal.current) {
+        terminal.current.writeln(`\r\n\x1b[31mFel: ${error}\x1b[0m\r\n`);
+      }
+      setIsConnected(false);
+    });
+    
+    return () => {
+      // Ta bort lyssnare
+      removeDataListener();
+      removeExitListener();
+      removeErrorListener();
+    };
+  }, [isConnected, sessionId, connection]);
+  
   return (
-    <div className="terminal-container">
-      {!connection ? (
-        <div className="terminal-placeholder">
-          <div className="placeholder-content">
-            <h3>Ingen anslutning vald</h3>
-            <p>Välj en anslutning från listan för att börja</p>
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: '100%', 
+      position: 'relative'
+    }}>
+      {connection && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '5px'
+        }}>
+          <div>
+            <span style={{ fontSize: '12px' }}>
+              {connection.name || connection.host} 
+              {isConnected 
+                ? <span style={{ color: 'var(--theme-accent-color)', marginLeft: '5px' }}>●</span>
+                : <span style={{ color: '#888', marginLeft: '5px' }}>○</span>}
+            </span>
+          </div>
+          
+          <div>
+            {!isConnected ? (
+              <button 
+                onClick={connect}
+                disabled={isConnecting}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--theme-accent-color)',
+                  color: 'var(--theme-text-color)',
+                  padding: '2px 8px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                {isConnecting ? 'Ansluter...' : 'Anslut'}
+              </button>
+            ) : (
+              <button 
+                onClick={disconnect}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--theme-accent-color)',
+                  color: 'var(--theme-text-color)',
+                  padding: '2px 8px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Koppla från
+              </button>
+            )}
           </div>
         </div>
-      ) : (
-        <>
-          <div className="terminal-header">
-            <div className="terminal-title">
-              <span className="connection-name">{connection.name}</span>
-              <span className="connection-host">{connection.username}@{connection.host}:{connection.port}</span>
-            </div>
-            <div className="terminal-actions">
-              {!isConnected ? (
-                <button 
-                  className="connect-btn"
-                  onClick={connectToSSH}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Ansluter...' : 'Anslut'}
-                </button>
-              ) : (
-                <button 
-                  className="disconnect-btn"
-                  onClick={disconnectFromSSH}
-                >
-                  Koppla från
-                </button>
-              )}
-              <button 
-                className="clear-btn"
-                onClick={clearTerminal}
-              >
-                Rensa
-              </button>
-            </div>
-          </div>
-          
-          {error && (
-            <div className="terminal-error">
-              {error}
-            </div>
-          )}
-          
-          <div className="terminal-xterm" ref={terminalRef} />
-        </>
       )}
+      
+      <div 
+        ref={terminalRef} 
+        style={{ 
+          height: '100%', 
+          width: '100%', 
+          overflow: 'hidden',
+          borderRadius: '4px',
+          border: '1px solid var(--theme-accent-color)'
+        }} 
+      />
     </div>
   );
 };

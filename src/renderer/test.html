@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ScreammSSH - Testläge</title>
+  <style>
+    body { 
+      font-family: monospace; 
+      padding: 20px; 
+      background: #222; 
+      color: #0f0; 
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    h1 { color: #0f0; }
+    pre { background: #333; padding: 10px; border-radius: 5px; }
+    button {
+      background: #0f0;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: monospace;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #0c0;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 10px;
+      background: #333;
+      border-radius: 5px;
+      min-height: 100px;
+      width: 80%;
+    }
+  </style>
+</head>
+<body>
+  <h1>ScreammSSH - Testläge</h1>
+  <p>Detta är en enkel testsida för att verifiera att Electron fungerar korrekt.</p>
+  
+  <div>
+    <button id="pingBtn">Testa Ping</button>
+    <button id="versionBtn">Visa Versioner</button>
+  </div>
+  
+  <div id="result">Resultat kommer att visas här...</div>
+  
+  <script>
+    // Kontrollera om electronAPI finns tillgängligt
+    document.addEventListener('DOMContentLoaded', () => {
+      const resultDiv = document.getElementById('result');
+      
+      if (window.electronAPI) {
+        resultDiv.innerHTML = 'electronAPI är tillgängligt! ✅';
+      } else {
+        resultDiv.innerHTML = 'electronAPI är INTE tillgängligt! ❌';
+      }
+      
+      // Lägg till händelsehanterare för knappar
+      document.getElementById('pingBtn').addEventListener('click', async () => {
+        try {
+          if (window.electronAPI) {
+            const result = await window.electronAPI.ping();
+            resultDiv.innerHTML = `Ping-resultat: ${result}`;
+          } else {
+            resultDiv.innerHTML = 'Kan inte pinga: electronAPI saknas';
+          }
+        } catch (error) {
+          resultDiv.innerHTML = `Fel vid ping: ${error.message}`;
+        }
+      });
+      
+      document.getElementById('versionBtn').addEventListener('click', () => {
+        try {
+          if (window.electronAPI && window.electronAPI.versions) {
+            resultDiv.innerHTML = `
+              <strong>Versioner:</strong><br>
+              Node: ${window.electronAPI.versions.node}<br>
+              Chrome: ${window.electronAPI.versions.chrome}<br>
+              Electron: ${window.electronAPI.versions.electron}
+            `;
+          } else {
+            resultDiv.innerHTML = 'Kan inte visa versioner: electronAPI saknas';
+          }
+        } catch (error) {
+          resultDiv.innerHTML = `Fel vid hämtning av versioner: ${error.message}`;
+        }
+      });
+    });
+  </script>
+</body>
+</html> 
